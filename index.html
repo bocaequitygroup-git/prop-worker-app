@@ -119,6 +119,20 @@ details.run>summary::-webkit-details-marker{display:none}
 .reasons button[aria-pressed=true]{border-color:var(--pause);background:var(--pause);color:var(--pause-ink)}
 #toast{position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:80;background:var(--ink);color:var(--bg);padding:14px 16px;border-radius:12px;font-weight:700;text-align:center;max-width:560px;margin:0 auto}
 #toast.bad{background:var(--warn);color:#fff}
+
+.sc{position:fixed;inset:0;z-index:70;background:var(--bg);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+.sc .cam{max-height:none;flex:1;border-radius:0;aspect-ratio:auto}
+.sc .panel{padding:12px 14px calc(14px + env(safe-area-inset-bottom,0px));display:grid;gap:10px;background:var(--card);border-top:2px solid var(--line)}
+.sc .ttl2{font-weight:700;font-size:19px}
+.sc .found{max-height:96px;overflow:auto;font-size:15px}
+.zone{border:3px solid var(--line);border-radius:var(--r);padding:12px;background:var(--card);margin:12px 0}
+.zone.ok{border-color:var(--go)}
+.zone .zl{font-weight:700;font-size:20px}
+.lock{opacity:.8}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg button{min-height:52px;border-radius:12px;border:2px solid var(--line);background:var(--bg);font-weight:700;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--head);color:var(--head-ink);border-color:var(--head)}
+.trayrow{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:15px}
 </style>
 </head>
 <body>
@@ -148,43 +162,38 @@ details.run>summary::-webkit-details-marker{display:none}
   <main>
     <section id="v-sessions">
       <div class="bar"><h2>My sessions</h2><button class="btn ghost sm" id="refreshBtn">Refresh</button></div>
-      <div id="sessionList"></div>
+      <div class="lanes" id="lanes" role="group" aria-label="Phase filter"></div>
+      <div id="taskList"></div>
     </section>
 
-    <section id="v-queue" class="hidden">
-      <div class="bar"><h2>Work queue</h2></div>
-      <div class="lanes" id="lanes" role="group" aria-label="Work lane"></div>
-      <div id="queueList"></div>
+    <section id="v-trays" class="hidden">
+      <div class="bar"><h2>Move trays</h2></div>
+      <div id="trayBox"></div>
     </section>
 
-    <section id="v-scan" class="hidden">
-      <div class="bar"><h2>Scan</h2></div>
-      <div class="cam hidden" id="cam"><video id="vid" playsinline muted></video><div class="frame"></div><div class="msg" id="camMsg">Point at a tag, tray, bed or location code</div></div>
-      <div style="display:grid;gap:10px;margin-top:12px">
-        <button class="btn go" id="camBtn">Start camera</button>
-        <label class="f" for="typed" style="margin:6px 0 0">Or type the code</label>
-        <div class="loc"><input class="t" id="typed" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="R-… / S-… / GH-16"><button class="btn done sm" id="typedGo">Look up</button></div>
-      </div>
-      <div id="scanResult" style="margin-top:14px"></div>
+    <section id="v-floor" class="hidden">
+      <div class="bar"><h2>On the floor</h2><button class="btn ghost sm" id="refreshBtn2">Refresh</button></div>
+      <div id="floorList"></div>
     </section>
 
     <section id="v-log" class="hidden">
-      <div class="bar"><h2>My completed work</h2></div>
+      <div class="bar"><h2>My finished work</h2></div>
+      <div class="meta" style="margin:-6px 0 10px">Last 16 hours</div>
       <div id="logList"></div>
     </section>
   </main>
 
   <nav class="tabs" role="tablist" aria-label="Sections">
     <button role="tab" data-tab="sessions" aria-selected="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M8 10h8M8 14h5"/></svg>Sessions<span class="badge hidden" id="sessBadge">0</span></button>
-    <button role="tab" data-tab="queue" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>Queue</button>
-    <button role="tab" data-tab="scan" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16"/></svg>Scan</button>
+    <button role="tab" data-tab="trays" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M9 6v12M15 6v12M3 12h18"/></svg>Trays</button>
+    <button role="tab" data-tab="floor" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M15 15c3 0 6 1.6 6 5"/></svg>Floor</button>
     <button role="tab" data-tab="log" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Done</button>
   </nav>
 </div>
 
 <!-- SESSION SCREEN -->
 <section id="session" class="hidden" aria-label="Work session">
-  <header class="top" style="margin:0 -0px">
+  <header class="top">
     <button class="iconbtn" id="sBack" aria-label="Back to sessions">&#x2190;</button>
     <div class="ttl" id="sTitle">Session<small id="sSub"></small></div>
     <div class="live" id="live2"><i></i><span id="liveTxt2">Offline</span></div>
@@ -195,15 +204,22 @@ details.run>summary::-webkit-details-marker{display:none}
       <div class="clock" id="sClock">0:00:00</div>
       <div class="st" id="sState"></div>
     </div>
-    <div class="card"><div class="nm" style="font-weight:700" id="sName"></div><div class="meta" id="sDesc"></div><div class="meta" id="sStage" style="margin-top:6px"></div></div>
+    <div class="card"><div style="font-weight:700" id="sName"></div><div class="meta" id="sDesc"></div><div class="meta" id="sTiming" style="margin-top:6px"></div></div>
+
+    <div class="zone" id="zoneBox">
+      <div class="meta">Work zone</div>
+      <div class="zl" id="zoneLabel"></div>
+      <div class="hint" id="zoneHint"></div>
+      <div style="margin-top:10px"><button class="btn done sm" id="zoneScanBtn" type="button">Scan zone tag</button></div>
+    </div>
+
+    <div id="preForm" class="hidden">
+      <div id="waveWrap" class="hidden"><label class="f" for="fWave">Wave</label><select class="t" id="fWave"></select></div>
+    </div>
 
     <div class="controls" id="sControls"></div>
 
-    <div id="sForm">
-      <div id="waveWrap" class="hidden"><label class="f" for="fWave">Wave</label><select class="t" id="fWave"></select></div>
-      <label class="f" for="fLoc">Location</label>
-      <div class="loc"><input class="t" id="fLoc" autocapitalize="characters" placeholder="Bed, bench or bay"><button class="btn ghost sm" id="locScan" type="button">Scan</button></div>
-
+    <div id="sForm" class="hidden">
       <div class="gate hidden" id="qtyGate">
         <div style="font-weight:700;margin-bottom:6px">Count required to finish</div>
         <div class="grid2">
@@ -211,19 +227,30 @@ details.run>summary::-webkit-details-marker{display:none}
           <div><label class="f" for="fUnit" style="margin-top:0">Unit</label><select class="t" id="fUnit"></select></div>
         </div>
       </div>
-
       <div class="grid2">
         <div><label class="f" for="fTemp">Temp (&deg;F)</label><input class="t" id="fTemp" type="number" inputmode="decimal"></div>
         <div><label class="f" for="fMoist">Media moisture</label><select class="t" id="fMoist"><option value="">&mdash;</option><option>Dry</option><option>Even</option><option>Wet</option></select></div>
       </div>
-      <label class="f" for="fEquip">Equipment used</label><input class="t" id="fEquip" placeholder="Seeder, flat-filler, mist wand…">
+      <label class="f" for="fWeather">Weather</label>
+      <select class="t" id="fWeather"><option value="">&mdash;</option><option>Clear</option><option>Cloudy</option><option>Rain</option><option>Hot</option><option>Cold</option><option>Windy</option></select>
       <label class="f" for="fInputs">Inputs applied</label><input class="t" id="fInputs" placeholder="Media bags, fertilizer, biocontrol…">
-      <div class="grid2">
-        <div><label class="f" for="fWorkers">Workers on task</label><input class="t" id="fWorkers" type="number" inputmode="numeric" min="1" value="1"></div>
-        <div><label class="f" for="fOutcome">Outcome</label><select class="t" id="fOutcome"><option>OK</option><option>Partial</option><option>Issue found</option></select></div>
-      </div>
+      <label class="f">How did it go?</label>
+      <div class="seg" id="fFinish"><button type="button" data-v="yes" aria-pressed="true">Finished</button><button type="button" data-v="no" aria-pressed="false">Partial, more to do</button></div>
       <label class="f" for="fNotes">Notes</label><textarea class="t" id="fNotes"></textarea>
     </div>
+    <div id="equipWrap"><label class="f" for="fEquip">Equipment used</label><input class="t" id="fEquip" placeholder="Seeder, flat-filler, mist wand…"></div>
+  </div>
+</section>
+
+<!-- SCANNER -->
+<section id="scanner" class="sc hidden" aria-label="Scanner">
+  <div class="cam" id="cam"><video id="vid" playsinline muted></video><div class="frame"></div><div class="msg" id="camMsg"></div></div>
+  <div class="panel">
+    <div class="ttl2" id="scTitle"></div>
+    <div class="hint" id="scHint"></div>
+    <div class="found hidden" id="scFound"></div>
+    <div class="loc hidden" id="scTypedRow"><input class="t" id="scTyped" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Type the code"><button class="btn done sm" id="scTypedGo" type="button">Use code</button></div>
+    <button class="btn ghost" id="scClose" type="button">Cancel</button>
   </div>
 </section>
 
@@ -232,6 +259,7 @@ details.run>summary::-webkit-details-marker{display:none}
   <div class="sheet">
     <h3 id="pmT">Why are you pausing?</h3>
     <div class="reasons" id="reasons"></div>
+    <div id="stallNote" class="hidden"><label class="f" for="pmNote">What is stalled? The manager is alerted.</label><textarea class="t" id="pmNote"></textarea></div>
     <div style="display:grid;gap:10px;margin-top:14px">
       <button class="btn pause" id="pmOk" disabled>Pause session</button>
       <button class="btn ghost" id="pmCancel">Keep working</button>
@@ -245,388 +273,522 @@ details.run>summary::-webkit-details-marker{display:none}
 <script>
 /* ============================ CONFIG ============================ */
 const CFG = {
-  API_URL: "PASTE_APPS_SCRIPT_WEB_APP_URL_HERE",   // Apps Script Web App /exec URL
+  API_URL: "PASTE_APPS_SCRIPT_WEB_APP_URL_HERE",   // the same /exec URL as the board and dashboard (Code_pro.gs)
+  APP: "prop_workerapp",
   POLL_MS: 20000,
   SLOW_MS: 45000,
-  PAUSE_REASONS: ["Equipment repair","Climate alarm or weather","Material shortage (media, seed, trays)","Waiting on germination chamber","Break","Safety stop"],
+  STALL: "Material/Equipment Stall",
+  PAUSE_REASONS: ["Break","Lunch","Material/Equipment Stall","End of Day"],   // the four reasons wPause accepts
   UNITS: ["trays","cells","seeds","plants","bags","racks"],
   UNIT_BY_ACT: {"ACT-201":"trays","ACT-203":"trays","ACT-405":"trays","ACT-406":"cells","ACT-505":"trays","ACT-601":"trays","ACT-606":"racks"},
   LANES: [
-    {id:"all",   label:"All work",        phases:[1,2,3,4,5,6]},
+    {id:"all",   label:"All work", phases:[0,1,2,3,4,5,6]},
     {id:"sow",   label:"Media and sowing", phases:[1,2]},
     {id:"nurse", label:"Germination and grow-out", phases:[3,4]},
-    {id:"ship",  label:"Hardening and delivery",   phases:[5,6]}
-  ]
+    {id:"ship",  label:"Hardening and delivery", phases:[5,6]}
+  ],
+  QUEUEABLE: ["wPause","wResume","wClose","wTray","updateSession"]   // safe to repeat, so they can wait for signal
 };
 
 /* ============================ STATE ============================ */
-const S = { token:null, me:null, data:null, tab:"sessions", lane:"all", lastOk:0, cur:null, pauseReason:null, busy:false, poll:null, tick:null, scanStream:null, scanOn:false };
+const S = { token:null, me:null, data:null, skew:0, tab:"sessions", lane:"all", lastOk:0, cur:null, busy:false, poll:null, tick:null,
+  hide:{}, zone:{}, pauseReason:null, stream:null, scanOn:false, sc:null, tray:{codes:[],bad:[],dest:null,cid:null,res:null} };
 const $ = id => document.getElementById(id);
 const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nowMs = () => Date.now()+S.skew;
 
 /* ============================ API ============================ */
+class NetErr extends Error{ constructor(m){ super(m); this.net=true; } }
 async function api(action, payload){
-  const body = JSON.stringify(Object.assign({action, token:S.token, op_id:uid()}, payload||{}));
+  const body = JSON.stringify(Object.assign({action, token:S.token}, payload||{}));
   let res;
-  try{
-    res = await fetch(CFG.API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body});
-  }catch(e){ setLive(false); throw new Error("No connection. Check signal and try again."); }
+  try{ res = await fetch(CFG.API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body}); }
+  catch(e){ setLive(false); throw new NetErr("No connection. Check signal and try again."); }
   let j;
-  try{ j = await res.json(); }catch(e){ setLive(false); throw new Error("Server sent an unreadable reply."); }
-  if(j && j.code==="AUTH"){ doLogout(true); throw new Error("Session expired. Sign in again."); }
-  if(!j || !j.ok) { throw new Error((j&&j.error)||"Request failed."); }
+  try{ j = await res.json(); }catch(e){ setLive(false); throw new Error("Server sent an unreadable reply. Check the web app URL."); }
+  if(j && j.error){
+    if(/^AUTH/.test(j.error) && S.token){ doLogout(true); throw new Error("Session ended. Sign in again."); }
+    throw new Error(String(j.error).replace(/^AUTH:\s*/,""));
+  }
   S.lastOk = Date.now(); setLive(true);
   return j;
 }
-function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,9); }
+
+/* Outbox: pause, resume, close and tray moves wait here when there is no signal and carry their true tap time */
+const obKey = () => "prop_outbox_"+(S.me?S.me.id:"x");
+function obGet(){ try{ return JSON.parse(localStorage.getItem(obKey())||"[]"); }catch(e){ return []; } }
+function obSet(a){ try{ localStorage.setItem(obKey(),JSON.stringify(a)); }catch(e){} setLive(S.lastOk>0&&Date.now()-S.lastOk<CFG.SLOW_MS*3); }
+async function send(action, payload, optimistic){
+  payload = Object.assign({at:nowMs()}, payload);
+  try{ return await api(action,payload); }
+  catch(e){
+    if(e.net && CFG.QUEUEABLE.includes(action)){
+      const q=obGet(); q.push({action,payload}); obSet(q); if(optimistic) optimistic();
+      toast("No signal. Saved on this phone and will send automatically.");
+      return {queued:true};
+    }
+    throw e;
+  }
+}
+let flushing=false;
+async function flushOutbox(){
+  if(flushing) return; flushing=true;
+  try{
+    let q=obGet();
+    while(q.length){
+      try{ await api(q[0].action,q[0].payload); q.shift(); obSet(q); }
+      catch(e){
+        if(e.net) break;
+        toast("A saved action was rejected: "+e.message,true); q.shift(); obSet(q);
+      }
+    }
+    if(!obGet().length) S.hide={};
+  } finally { flushing=false; }
+}
 
 /* ============================ LIVE INDICATOR ============================ */
 function setLive(ok){
-  const age = Date.now()-S.lastOk;
+  const age = Date.now()-S.lastOk, q=S.me?obGet().length:0;
   const state = !ok ? "off" : (age>CFG.SLOW_MS ? "slow":"ok");
-  ["live","live2"].forEach((id,i)=>{
-    const el=$(id); el.className="live "+(state==="off"?"":state);
-    $(i?"liveTxt2":"liveTxt").textContent = state==="ok"?"Live":state==="slow"?"Slow":"Offline";
-  });
+  const txt = (state==="ok"?"Live":state==="slow"?"Slow":"Offline")+(q?" · "+q+" waiting":"");
+  ["live","live2"].forEach((id,i)=>{ $(id).className="live "+(state==="off"?"":state); $(i?"liveTxt2":"liveTxt").textContent=txt; });
 }
 
 /* ============================ AUTH ============================ */
-function saveAuth(){ try{ sessionStorage.setItem("prop_auth",JSON.stringify({t:S.token,m:S.me})); }catch(e){} }
-function loadAuth(){ try{ const a=JSON.parse(sessionStorage.getItem("prop_auth")||"null"); if(a&&a.t){S.token=a.t;S.me=a.m;return true;} }catch(e){} return false; }
+function saveAuth(){ try{ localStorage.setItem("prop_auth",JSON.stringify({t:S.token,m:S.me})); }catch(e){} }
+function loadAuth(){ try{ const a=JSON.parse(localStorage.getItem("prop_auth")||"null"); if(a&&a.t){S.token=a.t;S.me=a.m;return true;} }catch(e){} return false; }
 $("loginForm").addEventListener("submit", async ev=>{
   ev.preventDefault();
   const u=$("u").value.trim(), p=$("p").value;
   if(!u||!p){ $("loginErr").textContent="Enter your user name and PIN."; return; }
   $("loginBtn").disabled=true; $("loginErr").textContent="";
   try{
-    const j = await api("login",{user:u,pin:p,device:navigator.userAgent.slice(0,120)});
-    S.token=j.token; S.me=j.me; saveAuth(); $("p").value="";
+    let id=u; const key=u.toLowerCase();
+    try{
+      const w=(await api("workers")).workers||[];
+      const hit=w.find(x=>String(x.id).toLowerCase()===key)||w.find(x=>String(x.name).trim().toLowerCase()===key);
+      if(hit) id=hit.id;
+    }catch(e){ if(e.net) throw e; }
+    const j=await api("login",{workerId:id,pin:p,device:navigator.userAgent.slice(0,200),app:CFG.APP});
+    S.token=j.token; S.me={id:j.user.workerId,name:j.user.name,role:j.user.role}; saveAuth(); $("p").value="";
     enterApp();
-  }catch(e){ $("loginErr").textContent=e.message; }
+  }catch(e){ $("loginErr").textContent = e.net ? e.message : (/Login failed/i.test(e.message) ? "User name or PIN is not right." : e.message); }
   $("loginBtn").disabled=false;
 });
 function doLogout(expired){
-  clearInterval(S.poll); clearInterval(S.tick); stopScan();
+  clearInterval(S.poll); clearInterval(S.tick); stopCam();
   if(!expired && S.token){ api("logout").catch(()=>{}); }
-  S.token=null;S.me=null;S.data=null;S.cur=null; try{sessionStorage.removeItem("prop_auth");}catch(e){}
-  $("session").classList.add("hidden"); $("app").classList.add("hidden"); $("login").classList.remove("hidden");
-  if(expired) $("loginErr").textContent="Session expired. Sign in again.";
+  S.token=null;S.data=null;S.cur=null; try{localStorage.removeItem("prop_auth");}catch(e){}
+  ["session","scanner"].forEach(i=>$(i).classList.add("hidden")); document.body.style.overflow="";
+  $("app").classList.add("hidden"); $("login").classList.remove("hidden");
+  $("loginErr").textContent = expired ? "Session ended. Sign in again." : "";
 }
-$("logoutBtn").onclick=()=>doLogout(false);
+$("logoutBtn").onclick=()=>{ if(obGet().length && !confirm("Some work is still waiting to send. Sign out anyway?")) return; doLogout(false); };
 
 /* ============================ BOOT ============================ */
 function enterApp(){
   $("login").classList.add("hidden"); $("app").classList.remove("hidden");
   $("who").textContent = S.me.name+" · "+S.me.role;
-  buildLanes(); switchTab("sessions");
-  refresh(true);
+  buildLanes(); switchTab("sessions"); refresh(true);
   clearInterval(S.poll); S.poll=setInterval(()=>{ if(!document.hidden) refresh(); },CFG.POLL_MS);
   clearInterval(S.tick); S.tick=setInterval(tick,1000);
 }
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden && S.token) refresh(); });
+window.addEventListener("online",()=>{ if(S.token) refresh(); });
 
-async function refresh(first){
+async function refresh(manual){
   if(!S.token) return;
   try{
-    const j = await api("state");
-    S.data=j; renderAll();
-    if(S.cur){ const live=findSession(S.cur); if(live) renderSession(); }
-  }catch(e){ if(first||S.tab==="sessions") toast(e.message,true); }
+    if(obGet().length){ await flushOutbox(); if(obGet().length){ if(manual) toast("Still no signal. Work is saved on this phone.",true); return; } }
+    const j = await api("wSync");
+    S.data=j; S.skew=j.now-Date.now(); renderAll();
+    if(S.cur){ if(findTask(S.cur)) renderSession(false); else closeSessionScreen(); }
+  }catch(e){ if(manual||S.tab==="sessions") toast(e.message,true); }
 }
-$("refreshBtn").onclick=()=>refresh(true);
+$("refreshBtn").onclick=()=>refresh(true); $("refreshBtn2").onclick=()=>refresh(true);
 
-/* ============================ DATA HELPERS ============================ */
-function findSession(id){ return (S.data&&S.data.sessions||[]).find(s=>s.session_id===id); }
-function actRef(id){ return (S.data&&S.data.activities||[]).find(a=>a.activity_id===id)||{activity:id,description:"",requires_count:"N",phase:"",scope:""}; }
-function phaseNum(a){ const m=/Phase\s+(\d)/.exec(a.phase||""); return m?+m[1]:0; }
-function runById(id){ return (S.data&&S.data.runs||[]).find(r=>r.run_id===id); }
-function myId(){ return S.me&&S.me.id; }
-function isMine(s){ return s.started_by===myId() || s.assigned_to===myId(); }
+/* ============================ HELPERS ============================ */
+const cfg = () => (S.data&&S.data.config)||{qrRequired:true,qrManual:false};
+const typedOk = () => !cfg().qrRequired || cfg().qrManual;
+function findTask(key){ return (S.data&&S.data.tasks||[]).find(t=>t.key===key); }
+function phaseNum(t){ const m=/Phase\s+(\d)/.exec(t.phase||""); return m?+m[1]:0; }
 function fmtHMS(sec){ sec=Math.max(0,Math.floor(sec)); const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60; return h+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0"); }
-function activeSec(s){
-  if(!s.started_at) return 0;
-  const now=Date.now()+(S.data?S.data.skew||0:0);
-  const st=Date.parse(s.started_at); let paused=(+s.paused_total_sec||0);
-  if(s.status==="PAUSED" && s.pause_started_at) paused+=(now-Date.parse(s.pause_started_at))/1000;
-  return (now-st)/1000-paused;
+function netSec(s){
+  let paused=+s.pausedSec||0; const n=nowMs();
+  if(s.pausedAt) paused+=(n-Date.parse(s.pausedAt))/1000;
+  return (n-Date.parse(s.startedAt))/1000-paused;
 }
-function uiStatus(s){ if(s.status==="PAUSED") return "PAUSED"; if(s.status==="IN_PROGRESS") return "IN_PROGRESS"; if(s.status==="OPEN" && s.started_by) return "IN_PROGRESS"; return "ASSIGNED"; }
-function stageHint(run){
-  const c=(S.data.crops||{})[run.crop_code]; if(!c||!run.sow_date_wave1) return "";
-  const days=Math.floor((Date.now()-Date.parse(run.sow_date_wave1))/86400000);
-  if(days<0) return "Wave 1 sows in "+(-days)+" day"+(days===-1?"":"s");
-  const g=+c.germination_days||0,n=+c.nursery_days||0,h=+c.harden_days||0;
-  if(days<=g) return "Day "+days+": germination (sprout check by day "+g+")";
-  if(days<=g+n) return "Day "+days+": nursery grow-out";
-  if(days<=g+n+h) return "Day "+days+": hardening off";
-  return "Day "+days+": past hardening window";
+function fmtDT(ms){ const d=new Date(ms); return isNaN(d)?"":d.toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}); }
+function fmtDue(s){ if(!s) return ""; const d=new Date(String(s).length<=10?s+"T12:00:00":s); return isNaN(d)?String(s):d.toLocaleDateString([], {month:"short",day:"numeric"}); }
+
+/* zone matching, same rules as the server so a wrong tag is caught on the phone */
+function zNorm(s){ return String(s==null?"":s).toUpperCase().replace(/\s+/g,"").replace(/^ZONE[:|]/,""); }
+function zoneOk(scan,z){
+  const s=zNorm(scan); if(!s||!z) return false;
+  if((z.codes||[]).indexOf(s)>=0) return true;
+  const m=/^([A-Z]+\d*-)(\d+)$/.exec(s); if(!m) return false;
+  const n=+m[2], r=z.ranges||[];
+  for(let i=0;i<r.length;i++) if(r[i].p===m[1]&&n>=r[i].a&&n<=r[i].b) return true;
+  return (z.any||[]).indexOf(m[1])>=0;
 }
+const scanPass = (code,z) => !cfg().qrRequired || zoneOk(code,z);
 
 /* ============================ RENDER ============================ */
-function renderAll(){ renderSessions(); renderQueue(); renderBadge(); setLive(true); }
+function renderAll(){ renderTasks(); renderBadge(); renderFloor(); renderLog(); renderTrays(); setLive(true); }
 function renderBadge(){
-  const n=(S.data.sessions||[]).filter(s=>isMine(s)).length, b=$("sessBadge");
+  const n=(S.data.tasks||[]).filter(t=>!S.hide[t.key]).length, b=$("sessBadge");
   b.textContent=n; b.classList.toggle("hidden",!n);
 }
-function renderSessions(){
-  const list=$("sessionList"); const all=S.data.sessions||[];
-  const mine=all.filter(isMine), others=all.filter(s=>!isMine(s));
-  const mgr = /manager|founder/i.test(S.me.role);
-  let h="";
-  if(!mine.length) h+='<div class="card empty">No sessions assigned to you.<br>Open the Queue tab to start work.</div>';
-  mine.forEach(s=>h+=sessionCard(s));
-  if(mgr && others.length){ h+='<div class="bar" style="margin-top:18px"><h2 style="font-size:18px">Other workers</h2></div>'; others.forEach(s=>h+=sessionCard(s,true)); }
-  list.innerHTML=h;
-}
-function sessionCard(s,ro){
-  const a=actRef(s.activity_id), run=runById(s.run_id)||{}, st=uiStatus(s);
-  const re = s.assigned_to && s.started_by && s.assigned_to!==s.started_by;
-  const cls = st==="IN_PROGRESS"?"live-card":st==="PAUSED"?"paused-card":"";
-  const chip = st==="IN_PROGRESS"?'<span class="chip go">In progress</span>':st==="PAUSED"?'<span class="chip pause">Paused</span>':'<span class="chip">Assigned</span>';
-  return '<div class="card '+cls+'"><div class="row"><div><h3>'+esc(a.activity)+'</h3><div class="meta">'+esc(s.run_id)+' · '+esc(run.crop_code||"")+' · wave '+esc(s.wave)+'</div><div class="meta">'+esc(s.location||"No location yet")+'</div>'+chip+(re?'<span class="chip re">Reassigned to you</span>':'')+'</div>'
-   +'<div class="timer" data-sid="'+esc(s.session_id)+'">'+(st==="ASSIGNED"?"":fmtHMS(activeSec(s)))+'</div></div>'
-   +(ro?'':'<div style="margin-top:10px"><button class="btn '+(st==="ASSIGNED"?"go":"done")+'" data-open="'+esc(s.session_id)+'">'+(st==="ASSIGNED"?"Open and start":"Return to session")+'</button></div>')+'</div>';
-}
-$("sessionList").addEventListener("click",e=>{ const b=e.target.closest("[data-open]"); if(b) openSession(b.dataset.open); });
-
 function buildLanes(){
-  const saved=localStorage.getItem("prop_lane_"+myId()); if(saved) S.lane=saved;
+  const saved=localStorage.getItem("prop_lane_"+S.me.id); if(saved) S.lane=saved;
   $("lanes").innerHTML=CFG.LANES.map(l=>'<button data-lane="'+l.id+'" aria-pressed="'+(S.lane===l.id)+'">'+esc(l.label)+'</button>').join("");
 }
-$("lanes").addEventListener("click",e=>{ const b=e.target.closest("[data-lane]"); if(!b)return; S.lane=b.dataset.lane; localStorage.setItem("prop_lane_"+myId(),S.lane); buildLanes(); renderQueue(); });
+$("lanes").addEventListener("click",e=>{ const b=e.target.closest("[data-lane]"); if(!b)return; S.lane=b.dataset.lane; localStorage.setItem("prop_lane_"+S.me.id,S.lane); buildLanes(); renderTasks(); });
 
-function renderQueue(){
-  const lane=CFG.LANES.find(l=>l.id===S.lane)||CFG.LANES[0]; const runs=S.data.runs||[];
-  let h="";
-  runs.forEach(r=>{
-    const acts=(r.pending||[]).map(id=>({id,a:actRef(id)})).filter(x=>lane.phases.includes(phaseNum(x.a)));
-    if(!acts.length) return;
-    const c=(S.data.crops||{})[r.crop_code]||{};
-    h+='<details class="card run"><summary><div class="row"><div><h3>'+esc(c.crop_name||r.crop_code)+' <span class="meta">('+esc(r.crop_code)+')</span></h3><div class="meta">'+esc(r.run_id)+' · platform '+esc(r.platform)+' · '+esc(r.waves)+' wave'+(+r.waves===1?"":"s")+' · '+esc(r.trays_per_wave)+' trays/wave</div><div class="meta">'+esc(stageHint(r))+'</div></div><span class="chip">'+acts.length+' to do</span></div></summary>'
-      +'<div class="acts">'+acts.map(x=>'<div class="act"><div><div class="nm">'+esc(x.a.activity)+(x.a.requires_count==="Y"?' <span class="chip">count</span>':'')+'</div><div class="ds">'+esc(x.a.description)+'</div></div><button class="btn go sm" data-start="'+esc(r.run_id)+'|'+esc(x.id)+'">Start</button></div>').join("")+'</div></details>';
-  });
-  $("queueList").innerHTML = h || '<div class="card empty">Nothing waiting in this lane.</div>';
+function renderTasks(){
+  const lane=CFG.LANES.find(l=>l.id===S.lane)||CFG.LANES[0];
+  const tasks=(S.data.tasks||[]).filter(t=>!S.hide[t.key]&&lane.phases.includes(phaseNum(t)));
+  $("taskList").innerHTML = tasks.length ? tasks.map(taskCard).join("") :
+    '<div class="card empty">Nothing assigned to you'+(S.lane==="all"?"":" in this phase")+'.<br>Your manager assigns work from the board.</div>';
 }
-$("queueList").addEventListener("click",async e=>{
-  const b=e.target.closest("[data-start]"); if(!b) return;
-  const [run_id,activity_id]=b.dataset.start.split("|"); await startWork(run_id,activity_id,b);
-});
+function taskCard(t){
+  const s=t.session, paused=s&&s.pausedAt;
+  const cls = s ? (paused?"paused-card":"live-card") : (t.locked?"lock":"");
+  let chips="";
+  if(s) chips+= paused?'<span class="chip pause">Paused: '+esc(s.pauseReason)+'</span>':'<span class="chip go">In progress</span>';
+  else if(t.locked) chips+='<span class="chip">Locked</span>'; else chips+='<span class="chip">Ready</span>';
+  if(t.reassigned) chips+='<span class="chip re">Reassigned from '+esc(t.reassigned.from||"another worker")+'</span>';
+  if(t.requiresCount) chips+='<span class="chip">Count</span>';
+  if(t.due) chips+='<span class="chip">Due '+esc(fmtDue(t.due))+'</span>';
+  if(t.waves>1) chips+='<span class="chip">Waves done '+t.doneWaves.length+' of '+t.waves+'</span>';
+  const team=(t.team||[]).length?'<div class="meta">With '+esc(t.team.join(", "))+'</div>':"";
+  const lockNote=t.locked&&!s?'<div class="hint">Locked until the pre-sowing and post-transplant activities for this run are verified.</div>':"";
+  const btn = s ? '<button class="btn done" data-open="'+esc(t.key)+'">Return to session</button>'
+    : t.locked ? '<button class="btn ghost" disabled>Locked</button>'
+    : '<button class="btn go" data-open="'+esc(t.key)+'">Open and start</button>';
+  return '<div class="card '+cls+'"><div class="row"><div><h3>'+esc(t.name)+'</h3><div class="meta">'+esc(t.cropName)+' · '+esc(t.runId)+' · platform '+esc(t.platform)+'</div>'
+    +'<div class="meta">'+esc(t.zone?t.zone.label:"")+'</div>'+team+'</div>'
+    +'<div class="timer" data-sid="'+esc(s?s.id:"")+'" data-key="'+esc(t.key)+'">'+(s?fmtHMS(netSec(s)):"")+'</div></div>'
+    +'<div>'+chips+'</div>'+lockNote+'<div style="margin-top:10px">'+btn+'</div></div>';
+}
+$("taskList").addEventListener("click",e=>{ const b=e.target.closest("[data-open]"); if(b) openSession(b.dataset.open); });
 
-async function renderLog(){
-  const box=$("logList"); box.innerHTML='<div class="card empty">Loading…</div>';
-  try{
-    const j=await api("history");
-    box.innerHTML = (j.rows||[]).length ? j.rows.map(r=>'<div class="card"><div class="row"><div><h3>'+esc(r.activity_name)+'</h3><div class="meta">'+esc(r.run_id)+' · '+esc(r.crop_code)+' · wave '+esc(r.wave)+'</div><div class="meta">'+esc(r.location||"")+'</div></div><div class="timer">'+esc(Math.round(r.duration_min||0))+' min</div></div>'
-      +(r.quantity!==""&&r.quantity!=null?'<span class="chip">'+esc(r.quantity)+' '+esc(r.unit||"")+'</span>':'')+'<span class="chip">'+esc(r.outcome||"")+'</span><div class="meta" style="margin-top:6px">'+esc(fmtDT(r.closed_at))+'</div></div>').join("")
-      : '<div class="card empty">Finished work will appear here.</div>';
-  }catch(e){ box.innerHTML='<div class="card empty">'+esc(e.message)+'</div>'; }
+function renderFloor(){
+  const rows=(S.data.board||[]);
+  $("floorList").innerHTML = rows.length ? rows.map(x=>{
+    const paused=!!x.pausedAt;
+    return '<div class="card '+(paused?"paused-card":"")+'"><div class="row"><div><h3>'+esc(x.worker)+(x.me?" (you)":"")+'</h3><div class="meta">'+esc(x.activity)+' · '+esc(x.crop)+' · wave '+esc(x.wave)+'</div><div class="meta">'+esc(x.location||"")+'</div>'
+      +(paused?'<span class="chip pause">Paused: '+esc(x.pauseReason)+'</span>':'<span class="chip go">Working</span>')+'</div><div class="timer" data-bsid="'+esc(x.id)+'">'+fmtHMS(netSec(x))+'</div></div></div>';
+  }).join("") : '<div class="card empty">No one has a session open right now.</div>';
 }
-function fmtDT(s){ if(!s) return ""; const d=new Date(s); return isNaN(d)?s:d.toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}); }
+function renderLog(){
+  const rows=(S.data.log||[]);
+  $("logList").innerHTML = rows.length ? rows.map(r=>
+    '<div class="card"><div class="row"><div><h3>'+esc(r.activity)+'</h3><div class="meta">'+esc(r.crop)+' · wave '+esc(r.wave)+'</div><div class="meta">'+esc(r.location||"")+'</div></div><div class="timer">'+esc(Math.round(+r.minutes||0))+' min</div></div>'
+    +(r.quantity!==""&&r.quantity!=null?'<span class="chip">'+esc(r.quantity)+' '+esc(r.unit||"")+'</span>':'')
+    +'<span class="chip">'+esc(r.outcome||"")+'</span>'+(r.verified?'<span class="chip go">Verified'+(r.verifiedBy?' by '+esc(r.verifiedBy):'')+'</span>':'')
+    +'<div class="meta" style="margin-top:6px">'+esc(fmtDT(r.closedAt))+'</div></div>').join("")
+    : '<div class="card empty">Finished work will appear here.</div>';
+}
 
 /* ============================ TABS ============================ */
 document.querySelector("nav.tabs").addEventListener("click",e=>{ const b=e.target.closest("[data-tab]"); if(b) switchTab(b.dataset.tab); });
 function switchTab(t){
   S.tab=t;
   document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t));
-  ["sessions","queue","scan","log"].forEach(v=>$("v-"+v).classList.toggle("hidden",v!==t));
-  if(t!=="scan") stopScan();
-  if(t==="log") renderLog();
+  ["sessions","trays","floor","log"].forEach(v=>$("v-"+v).classList.toggle("hidden",v!==t));
   window.scrollTo(0,0);
 }
 
-/* ============================ SESSION LIFECYCLE ============================ */
-async function startWork(run_id,activity_id,btn){
-  if(S.busy) return; S.busy=true; if(btn) btn.disabled=true;
-  try{
-    const j=await api("start",{run_id,activity_id,wave:1});
-    await refresh(); openSession(j.session_id); toast("Session started");
-  }catch(e){ toast(e.message,true); }
-  S.busy=false; if(btn) btn.disabled=false;
+/* ============================ SESSION SCREEN ============================ */
+function draftKey(k){ return "prop_draft_"+k; }
+function saveDraft(){
+  if(!S.cur) return;
+  const d={qty:$("fQty").value,unit:$("fUnit").value,temp:$("fTemp").value,moist:$("fMoist").value,weather:$("fWeather").value,equip:$("fEquip").value,inputs:$("fInputs").value,notes:$("fNotes").value,fin:finishVal()};
+  try{ localStorage.setItem(draftKey(S.cur),JSON.stringify(d)); }catch(e){}
 }
+function applyDraft(t){
+  let d={}; try{ d=JSON.parse(localStorage.getItem(draftKey(t.key))||"{}"); }catch(e){}
+  $("fQty").value=d.qty||""; $("fUnit").innerHTML=CFG.UNITS.map(u=>'<option>'+u+'</option>').join(""); $("fUnit").value=d.unit||CFG.UNIT_BY_ACT[t.activityId]||"trays";
+  $("fTemp").value=d.temp||""; $("fMoist").value=d.moist||""; $("fWeather").value=d.weather||""; $("fEquip").value=d.equip||""; $("fInputs").value=d.inputs||""; $("fNotes").value=d.notes||"";
+  setFinish(d.fin||"yes");
+}
+function finishVal(){ const b=$("fFinish").querySelector('[aria-pressed="true"]'); return b?b.dataset.v:"yes"; }
+function setFinish(v){ $("fFinish").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v)); }
+$("fFinish").addEventListener("click",e=>{ const b=e.target.closest("button"); if(b){ setFinish(b.dataset.v); saveDraft(); } });
+$("session").addEventListener("input",saveDraft);
 
-function openSession(id){
-  const s=findSession(id); if(!s){ toast("That session is no longer open.",true); return; }
-  S.cur=id; loadDraft(s); $("session").classList.remove("hidden"); document.body.style.overflow="hidden"; renderSession(true);
+function openSession(key){
+  const t=findTask(key); if(!t){ toast("That task is no longer on your list.",true); return; }
+  S.cur=key; applyDraft(t); $("session").classList.remove("hidden"); document.body.style.overflow="hidden"; renderSession(true);
 }
-$("sBack").onclick=()=>{ saveDraft(); S.cur=null; $("session").classList.add("hidden"); document.body.style.overflow=""; refresh(); };
+function closeSessionScreen(){ S.cur=null; $("session").classList.add("hidden"); document.body.style.overflow=""; }
+$("sBack").onclick=()=>{ saveDraft(); closeSessionScreen(); refresh(); };
 
 function renderSession(first){
-  const s=findSession(S.cur); if(!s){ S.cur=null; $("session").classList.add("hidden"); document.body.style.overflow=""; return; }
-  const a=actRef(s.activity_id), run=runById(s.run_id)||{}, st=uiStatus(s), c=(S.data.crops||{})[run.crop_code]||{};
-  $("sTitle").firstChild.nodeValue=a.activity; $("sSub").textContent=s.session_id;
-  $("sCrop").textContent=(c.crop_name||run.crop_code||"")+" · "+s.run_id+" · wave "+s.wave;
-  $("sName").textContent=a.activity; $("sDesc").textContent=a.description||"";
-  $("sStage").textContent=run.run_id?stageHint(run):"";
-  $("sState").textContent = st==="IN_PROGRESS"?"In progress": st==="PAUSED"?("Paused: "+(s.pause_reason||"")):"Assigned: not started";
-  const mine=isMine(s)||/manager|founder/i.test(S.me.role);
-  const ctl=$("sControls");
-  if(st==="ASSIGNED") ctl.innerHTML='<button class="btn go" id="cStart">Start</button>';
-  else if(st==="PAUSED") ctl.innerHTML='<button class="btn go" id="cResume">Resume</button><button class="btn done" id="cDone">Complete</button>';
-  else ctl.innerHTML='<button class="btn pause" id="cPause">Pause</button><button class="btn done" id="cDone">Complete</button>';
-  ctl.querySelectorAll("button").forEach(b=>b.disabled=!mine);
-  // wave picker for crop-wave scope
+  const t=findTask(S.cur); if(!t){ closeSessionScreen(); return; }
+  const s=t.session, paused=!!(s&&s.pausedAt), z=t.zone||{label:""};
+  $("sTitle").firstChild.nodeValue=t.name; $("sSub").textContent=s?s.id:t.runId;
+  $("sCrop").textContent=t.cropName+" · "+t.runId+(s?" · wave "+s.wave:"");
+  $("sName").textContent=t.name; $("sDesc").textContent=t.description||""; $("sTiming").textContent=t.timing?("Typical timing: "+t.timing):"";
+  $("sState").textContent = !s ? "Not started" : paused ? "Paused: "+s.pauseReason : "In progress";
+  $("zoneLabel").textContent=z.label||"Zone not set";
+  const key=t.key, need=cfg().qrRequired, got=S.zone[key]&&S.zone[key].start;
+  const zb=$("zoneBox");
+  if(!s){
+    zb.classList.remove("hidden"); zb.classList.toggle("ok",!need||!!got);
+    $("zoneHint").textContent = !need ? "Zone scan is optional right now." : got ? "Zone confirmed: "+got.code : "Scan the tag for this zone to start.";
+    $("zoneScanBtn").textContent = got?"Scan again":"Scan zone tag";
+  } else { zb.classList.add("hidden"); }
+  $("preForm").classList.toggle("hidden",!!s); $("sForm").classList.toggle("hidden",!s);
+  $("equipWrap").classList.toggle("hidden",false);
+  // wave picker (only before start, only for multi-wave tasks)
   const ww=$("waveWrap");
-  if(a.scope==="crop-wave" && st==="ASSIGNED"){ ww.classList.remove("hidden"); const n=Math.max(1,+run.waves||1); $("fWave").innerHTML=Array.from({length:n},(_,i)=>'<option value="'+(i+1)+'"'+((+s.wave===i+1)?" selected":"")+'>Wave '+(i+1)+'</option>').join(""); }
-  else ww.classList.add("hidden");
-  // quantity gate
-  const need=a.requires_count==="Y"; $("qtyGate").classList.toggle("hidden",!need);
-  if(first){
-    $("fUnit").innerHTML=CFG.UNITS.map(u=>'<option>'+u+'</option>').join("");
-    $("fUnit").value=CFG.UNIT_BY_ACT[s.activity_id]||"trays";
-    applyDraft(s);
-    if(!$("fLoc").value && s.location) $("fLoc").value=s.location;
-    if(!$("fLoc").value && run.suggested_location) $("fLoc").value=run.suggested_location;
-  }
+  if(!s && t.waves>1){
+    ww.classList.remove("hidden");
+    if(first||!$("fWave").options.length){
+      const firstOpen=Array.from({length:t.waves},(_,i)=>i+1).find(w=>!t.doneWaves.includes(w))||1;
+      $("fWave").innerHTML=Array.from({length:t.waves},(_,i)=>'<option value="'+(i+1)+'">Wave '+(i+1)+(t.doneWaves.includes(i+1)?" (done)":"")+'</option>').join("");
+      $("fWave").value=String(firstOpen);
+    }
+  } else ww.classList.add("hidden");
+  $("qtyGate").classList.toggle("hidden",!t.requiresCount);
+  const ctl=$("sControls");
+  if(!s) ctl.innerHTML='<button class="btn go" id="cStart"'+(need&&!got?" disabled":"")+'>Start</button>';
+  else if(paused) ctl.innerHTML='<button class="btn go" id="cResume">Resume</button><button class="btn done" id="cDone">Complete</button>';
+  else ctl.innerHTML='<button class="btn pause" id="cPause">Pause</button><button class="btn done" id="cDone">Complete</button>';
   updateClock();
 }
 function updateClock(){
-  const s=findSession(S.cur); if(!s) return;
-  $("sClock").textContent = uiStatus(s)==="ASSIGNED" ? "0:00:00" : fmtHMS(activeSec(s));
+  const t=findTask(S.cur); if(!t) return;
+  $("sClock").textContent = t.session ? fmtHMS(netSec(t.session)) : "0:00:00";
 }
 function tick(){
   updateClock();
-  document.querySelectorAll(".timer[data-sid]").forEach(el=>{ const s=findSession(el.dataset.sid); if(s && uiStatus(s)!=="ASSIGNED") el.textContent=fmtHMS(activeSec(s)); });
-  setLive(Date.now()-S.lastOk<CFG.SLOW_MS*3 && S.lastOk>0);
+  document.querySelectorAll(".timer[data-key]").forEach(el=>{ const t=findTask(el.dataset.key); if(t&&t.session) el.textContent=fmtHMS(netSec(t.session)); });
+  document.querySelectorAll(".timer[data-bsid]").forEach(el=>{ const x=(S.data.board||[]).find(b=>b.id===el.dataset.bsid); if(x) el.textContent=fmtHMS(netSec(x)); });
+  setLive(S.lastOk>0&&Date.now()-S.lastOk<CFG.SLOW_MS*3);
 }
 
-/* drafts keep form entries if the worker leaves and returns */
-function draftKey(id){ return "prop_draft_"+id; }
-function loadDraft(s){ /* read lazily in applyDraft */ }
-function saveDraft(){
-  if(!S.cur) return;
-  const d={loc:$("fLoc").value,qty:$("fQty").value,unit:$("fUnit").value,temp:$("fTemp").value,moist:$("fMoist").value,equip:$("fEquip").value,inputs:$("fInputs").value,workers:$("fWorkers").value,outcome:$("fOutcome").value,notes:$("fNotes").value};
-  try{ localStorage.setItem(draftKey(S.cur),JSON.stringify(d)); }catch(e){}
-}
-function applyDraft(s){
-  let d={}; try{ d=JSON.parse(localStorage.getItem(draftKey(s.session_id))||"{}"); }catch(e){}
-  $("fLoc").value=d.loc||""; $("fQty").value=d.qty||""; if(d.unit) $("fUnit").value=d.unit;
-  $("fTemp").value=d.temp||""; $("fMoist").value=d.moist||""; $("fEquip").value=d.equip||""; $("fInputs").value=d.inputs||"";
-  $("fWorkers").value=d.workers||"1"; $("fOutcome").value=d.outcome||"OK"; $("fNotes").value=d.notes||"";
-}
-$("sForm").addEventListener("input",saveDraft);
+$("zoneScanBtn").onclick=()=>{
+  const t=findTask(S.cur); if(!t) return;
+  openScanner({title:"Scan "+(t.zone?t.zone.label:"zone"),hint:"Point at the zone tag.",allowTyped:typedOk(),
+    onCode:(code,mode)=>{
+      if(!scanPass(code,t.zone)) return {ok:false,msg:"That is not "+(t.zone?t.zone.label:"this zone")+". Scan the right tag."};
+      S.zone[t.key]=Object.assign(S.zone[t.key]||{},{start:{code,mode}}); return {ok:true,close:true};
+    },
+    onDone:()=>renderSession(false)});
+};
 
 $("sControls").addEventListener("click",async e=>{
   const b=e.target.closest("button"); if(!b||S.busy) return;
-  const s=findSession(S.cur); if(!s) return;
-  if(b.id==="cStart"){
-    await act("start",{run_id:s.run_id,activity_id:s.activity_id,wave:$("waveWrap").classList.contains("hidden")?s.wave:+$("fWave").value,location:$("fLoc").value.trim()},"Session started");
-  }else if(b.id==="cPause"){ openPause(); }
-  else if(b.id==="cResume"){ await act("resume",{session_id:s.session_id},"Resumed"); }
-  else if(b.id==="cDone"){ await complete(s); }
+  const t=findTask(S.cur); if(!t) return;
+  if(b.id==="cStart") await doStart(t);
+  else if(b.id==="cPause") openPause();
+  else if(b.id==="cResume") await doResume(t);
+  else if(b.id==="cDone") await doComplete(t);
 });
-async function act(action,payload,okMsg){
+
+async function doStart(t){
+  const z=S.zone[t.key]&&S.zone[t.key].start, wave=t.waves>1?+$("fWave").value:1;
   S.busy=true;
   try{
-    const j=await api(action,payload); await refresh();
-    if(j.session_id && j.session_id!==S.cur){ S.cur=j.session_id; }
-    renderSession(false); toast(okMsg);
+    const j=await api("wStart",{runId:t.runId,activityId:t.activityId,wave,zoneScan:z?z.code:"",scanMode:z?z.mode:"qr",equipment:$("fEquip").value.trim(),at:nowMs()});
+    await refresh(); renderSession(false); toast(j.already?"You already had this session open":"Session started");
+  }catch(e){ toast(e.message,true); }
+  S.busy=false;
+}
+async function doResume(t){
+  const s=t.session; S.busy=true;
+  try{
+    const r=await send("wResume",{sessionId:s.id},()=>{ s.pausedSec=(+s.pausedSec||0)+Math.max(0,(nowMs()-Date.parse(s.pausedAt))/1000); s.pausedAt=""; s.pauseReason=""; renderSession(false); renderTasks(); });
+    if(!r.queued){ await refresh(); toast("Resumed"); }
   }catch(e){ toast(e.message,true); }
   S.busy=false;
 }
 
-/* pause modal */
+/* pause modal: only the four reasons the server accepts; a stall also needs a note and alerts the manager */
 function openPause(){
-  S.pauseReason=null; $("pmOk").disabled=true;
+  S.pauseReason=null; $("pmOk").disabled=true; $("pmNote").value=""; $("stallNote").classList.add("hidden");
   $("reasons").innerHTML=CFG.PAUSE_REASONS.map(r=>'<button data-r="'+esc(r)+'" aria-pressed="false">'+esc(r)+'</button>').join("");
   $("pauseModal").classList.remove("hidden");
 }
 $("reasons").addEventListener("click",e=>{ const b=e.target.closest("[data-r]"); if(!b)return; S.pauseReason=b.dataset.r;
-  $("reasons").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b)); $("pmOk").disabled=false; });
+  $("reasons").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  $("stallNote").classList.toggle("hidden",S.pauseReason!==CFG.STALL); $("pmOk").disabled=false; });
 $("pmCancel").onclick=()=>$("pauseModal").classList.add("hidden");
 $("pmOk").onclick=async()=>{
-  if(!S.pauseReason) return; $("pauseModal").classList.add("hidden");
-  await act("pause",{session_id:S.cur,reason:S.pauseReason},"Paused");
+  const t=findTask(S.cur); if(!t||!S.pauseReason) return;
+  const reason=S.pauseReason, note=$("pmNote").value.trim(), s=t.session;
+  if(reason===CFG.STALL && !note){ toast("Say what is stalled so the manager can help.",true); $("pmNote").focus(); return; }
+  $("pauseModal").classList.add("hidden"); S.busy=true;
+  try{
+    const r=await send("wPause",{sessionId:s.id,reason,note},()=>{ s.pausedAt=new Date(nowMs()).toISOString(); s.pauseReason=reason; renderSession(false); renderTasks(); });
+    if(!r.queued){ await refresh(); toast("Paused"); }
+  }catch(e){ toast(e.message,true); }
+  S.busy=false;
 };
 
-/* complete with quantity validation gate */
-async function complete(s){
-  const a=actRef(s.activity_id); const qty=$("fQty").value.trim(), unit=$("fUnit").value;
-  if(a.requires_count==="Y"){
+/* complete: count gate first, then the zone scan the server requires, then one save */
+async function doComplete(t){
+  const s=t.session, fin=finishVal()==="yes", qty=$("fQty").value.trim(), unit=$("fUnit").value;
+  if(t.requiresCount && fin){
     const n=Number(qty);
     if(qty===""||!isFinite(n)||n<=0){ toast("Enter a quantity greater than 0 to finish.",true); $("fQty").focus(); return; }
     if(!unit){ toast("Choose a unit.",true); return; }
   }
-  const w=parseInt($("fWorkers").value,10); if(!(w>=1)){ toast("Workers on task must be at least 1.",true); return; }
-  if(!confirm("Finish "+a.activity+"? This saves the work to the permanent log.")) return;
-  S.busy=true;
+  if(!confirm((fin?"Finish ":"Save partial work on ")+t.name+"? This goes to the permanent log.")) return;
+  const submit=async scan=>{
+    S.busy=true;
+    try{
+      const cond={soilMoisture:$("fMoist").value,weather:$("fWeather").value,tempF:$("fTemp").value};
+      const equip=$("fEquip").value.trim();
+      if(equip||cond.soilMoisture||cond.weather||cond.tempF) await send("updateSession",{sessionId:s.id,equipment:equip||undefined,conditions:cond});
+      const inputs=$("fInputs").value.trim(), notes=[$("fNotes").value.trim(), inputs?"Inputs: "+inputs:""].filter(Boolean).join(" | ");
+      const body={sessionId:s.id,completed:fin,quantity:qty===""?"":Number(qty),unit:qty===""?"":unit,notes,zoneScan:scan?scan.code:"",scanMode:scan?scan.mode:"qr"};
+      const r=await send("wClose",body,()=>{ S.hide[t.key]=true; });
+      try{ localStorage.removeItem(draftKey(t.key)); }catch(e){}
+      delete S.zone[t.key]; closeSessionScreen();
+      if(r.queued){ renderTasks(); renderBadge(); } else { await refresh(); toast("Saved to the log"+(r.netMin!=null?": "+r.netMin+" min worked":"")); }
+    }catch(e){ toast(e.message,true); }
+    S.busy=false;
+  };
+  if(!cfg().qrRequired){ await submit(null); return; }
+  openScanner({title:"Scan "+(t.zone?t.zone.label:"zone")+" to submit",hint:"The server needs the zone tag to accept this task.",allowTyped:typedOk(),
+    onCode:(code,mode)=>{
+      if(!scanPass(code,t.zone)) return {ok:false,msg:"That is not "+(t.zone?t.zone.label:"this zone")+"."};
+      return {ok:true,close:true,value:{code,mode}};
+    },
+    onDone:v=>{ if(v) submit(v); }});
+}
+
+/* ============================ TRAYS ============================ */
+const TRAY_RE=/^TRAY\|([A-Za-z0-9-]+)\|W(\d+)\|(\d+)$/;
+function trayRun(){ const T=S.tray; if(!T.codes.length) return null; const m=TRAY_RE.exec(T.codes[0]); return m?(S.data.runs||[]).find(r=>r.runId===m[1]):null; }
+function trayWave(){ const m=S.tray.codes.length?TRAY_RE.exec(S.tray.codes[0]):null; return m?+m[2]:0; }
+function renderTrays(){
+  const T=S.tray, box=$("trayBox"), run=trayRun(), wave=trayWave();
+  let h="";
+  if(T.res){
+    h+='<div class="card live-card"><h3>Move saved</h3><div class="meta">'+T.res.logged+' tray'+(T.res.logged===1?"":"s")+' logged'+(T.res.duplicates?', '+T.res.duplicates+' already logged':'')+'.</div>'
+      +(T.res.rejected&&T.res.rejected.length?'<div class="hint">Rejected: '+T.res.rejected.map(x=>esc(x.code)+" ("+esc(x.why)+")").join("; ")+'</div>':'')
+      +'<div style="margin-top:10px"><button class="btn go" id="trNew">Move more trays</button></div></div>';
+    box.innerHTML=h; return;
+  }
+  h+='<div class="card"><div class="meta">Scan each tray tag, then scan the planting zone. Typing a tray code works if the camera fails.</div></div>';
+  if(run){
+    h+='<div class="card"><h3>'+esc(run.cropName)+' · wave '+wave+'</h3><div class="meta">'+esc(run.runId)+' · '+T.codes.length+' of '+(run.traysPerWave||"?")+' trays scanned</div>'
+      +(run.nursery?'':'<div class="hint" style="color:var(--warn)">This run has no nursery trays, so it cannot be moved here.</div>')
+      +'<div style="margin-top:8px">'+T.codes.slice(-6).reverse().map(c=>'<div class="trayrow"><span>'+esc(c)+'</span><button class="btn ghost sm" data-rm="'+esc(c)+'" style="min-height:40px">Remove</button></div>').join("")+'</div>'
+      +(T.codes.length>6?'<div class="hint">Showing the last 6.</div>':'')+'</div>';
+  }
+  h+='<div class="controls"><button class="btn done" id="trScan">'+(T.codes.length?"Scan more trays":"Scan trays")+'</button>'
+    +'<div class="loc"><input class="t" id="trTyped" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="TRAY|R-xxxxxxxx|W1|01"><button class="btn ghost sm" id="trAdd">Add</button></div></div>';
+  if(run&&run.nursery&&T.codes.length){
+    const ok=!cfg().qrRequired||!!T.dest;
+    h+='<div class="zone '+(ok?"ok":"")+'"><div class="meta">Destination zone</div><div class="zl">'+esc(run.zone?run.zone.label:"")+'</div><div class="hint">'+(!cfg().qrRequired?"Zone scan is optional right now.":T.dest?"Zone confirmed: "+esc(T.dest.code):"Scan the planting zone tag.")+'</div>'
+      +'<div style="margin-top:10px"><button class="btn done sm" id="trDest">'+(T.dest?"Scan again":"Scan zone tag")+'</button></div></div>'
+      +'<button class="btn go" id="trSubmit"'+(ok?"":" disabled")+'>Move '+T.codes.length+' tray'+(T.codes.length===1?"":"s")+'</button>';
+  }
+  if(T.bad.length) h+='<div class="hint" style="margin-top:10px;color:var(--warn)">'+T.bad.map(esc).join("<br>")+'</div>';
+  box.innerHTML=h;
+}
+function addTray(code){
+  const T=S.tray, c=String(code).trim(), m=TRAY_RE.exec(c);
+  if(!m) return {ok:false,msg:"Not a tray tag: "+c};
+  if(T.codes.length){ const f=TRAY_RE.exec(T.codes[0]); if(f[1]!==m[1]||f[2]!==m[2]) return {ok:false,msg:"Different run or wave. Finish this move first."}; }
+  const run=(S.data.runs||[]).find(r=>r.runId===m[1]); if(!run) return {ok:false,msg:"Run "+m[1]+" is not on this phone yet. Refresh."};
+  if(+m[3]<1||+m[3]>(run.traysPerWave||0)) return {ok:false,msg:"Tray "+m[3]+" is outside this run."};
+  if(T.codes.includes(c)) return {ok:true,msg:"Already scanned"};
+  T.codes.push(c); T.cid=T.cid||("c"+Date.now().toString(36)+Math.random().toString(36).slice(2,7)); return {ok:true,msg:"Tray "+m[3]+" added"};
+}
+$("trayBox").addEventListener("click",e=>{
+  const T=S.tray, id=e.target.id;
+  if(id==="trNew"){ S.tray={codes:[],bad:[],dest:null,cid:null,res:null}; renderTrays(); return; }
+  const rm=e.target.closest("[data-rm]"); if(rm){ T.codes=T.codes.filter(c=>c!==rm.dataset.rm); if(!T.codes.length){T.dest=null;T.cid=null;} renderTrays(); return; }
+  if(id==="trAdd"){ const v=$("trTyped").value.trim(); if(!v) return; const r=addTray(v); if(!r.ok) toast(r.msg,true); $("trTyped").value=""; renderTrays(); return; }
+  if(id==="trScan"){
+    openScanner({title:"Scan tray tags",hint:"Keep scanning. Tap Done when every tray is in.",multi:true,allowTyped:false,
+      onCode:code=>addTray(code),onDone:()=>renderTrays()}); return;
+  }
+  if(id==="trDest"){
+    const run=trayRun();
+    openScanner({title:"Scan "+(run&&run.zone?run.zone.label:"planting zone"),hint:"Point at the planting zone tag.",allowTyped:typedOk(),
+      onCode:(code,mode)=>{ if(!scanPass(code,run&&run.zone)) return {ok:false,msg:"That does not match "+(run&&run.zone?run.zone.label:"the zone")+"."}; T.dest={code,mode}; return {ok:true,close:true}; },
+      onDone:()=>renderTrays()}); return;
+  }
+  if(id==="trSubmit") submitTrays();
+});
+async function submitTrays(){
+  const T=S.tray, run=trayRun(); if(!run||S.busy) return; S.busy=true;
   try{
-    await api("complete",{session_id:s.session_id,location:$("fLoc").value.trim(),quantity:a.requires_count==="Y"?Number(qty):"",unit:a.requires_count==="Y"?unit:"",
-      temp_f:$("fTemp").value,soil_moisture:$("fMoist").value,equipment:$("fEquip").value.trim(),inputs_applied:$("fInputs").value.trim(),
-      workers:w,outcome:$("fOutcome").value,notes:$("fNotes").value.trim()});
-    try{ localStorage.removeItem(draftKey(s.session_id)); }catch(e){}
-    S.cur=null; $("session").classList.add("hidden"); document.body.style.overflow="";
-    await refresh(); toast("Work saved to the log");
+    const r=await send("wTray",{runId:run.runId,wave:trayWave(),trays:T.codes,toScan:T.dest?T.dest.code:"",toMode:T.dest?T.dest.mode:"qr",cid:T.cid});
+    if(r.queued){ S.tray={codes:[],bad:[],dest:null,cid:null,res:{logged:T.codes.length,duplicates:0,rejected:[]}}; }
+    else S.tray={codes:[],bad:[],dest:null,cid:null,res:{logged:r.logged,duplicates:r.duplicates,rejected:r.rejected}};
+    renderTrays(); toast("Tray move saved");
   }catch(e){ toast(e.message,true); }
   S.busy=false;
 }
 
-/* ============================ SCANNING ============================ */
-let detector=null, scanTarget="tab";
-function hasBD(){ return "BarcodeDetector" in window; }
-async function startScan(target){
-  scanTarget=target||"tab";
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ toast("Camera is not available here. Type the code instead.",true); return; }
-  try{
-    S.scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
-  }catch(e){ toast("Camera blocked. Allow camera access or type the code.",true); return; }
-  const v=$("vid"); v.srcObject=S.scanStream; await v.play().catch(()=>{});
-  $("cam").classList.remove("hidden"); $("camBtn").textContent="Stop camera"; S.scanOn=true;
-  if(hasBD()){ try{ detector=new BarcodeDetector({formats:["qr_code","code_128","code_39","ean_13","data_matrix"]}); }catch(e){ detector=null; } }
+/* ============================ SCANNER ============================ */
+let detector=null;
+function openScanner(opts){
+  S.sc=opts; $("scTitle").textContent=opts.title; $("scHint").textContent=opts.hint||""; $("camMsg").textContent="Point at the tag";
+  $("scTypedRow").classList.toggle("hidden",!opts.allowTyped); $("scTyped").value="";
+  const f=$("scFound"); f.classList.toggle("hidden",!opts.multi); f.textContent="";
+  $("scClose").textContent=opts.multi?"Done":"Cancel";
+  $("scanner").classList.remove("hidden"); document.body.style.overflow="hidden";
+  startCam();
+}
+function closeScanner(value){
+  const o=S.sc; S.sc=null; stopCam(); $("scanner").classList.add("hidden");
+  document.body.style.overflow = $("session").classList.contains("hidden") ? "" : "hidden";
+  if(o&&o.onDone) o.onDone(value);
+}
+$("scClose").onclick=()=>closeScanner(undefined);
+async function handleScan(code,mode){
+  const o=S.sc; if(!o) return;
+  const r=o.onCode(code,mode)||{ok:false};
+  if(o.multi){
+    const f=$("scFound"); f.textContent=r.msg||""; f.classList.remove("hidden");
+    $("camMsg").textContent=r.msg||""; return;
+  }
+  if(r.ok&&r.close){ closeScanner(r.value); return; }
+  $("camMsg").textContent=r.msg||"Try again";
+}
+function typedGo(){ const v=$("scTyped").value.trim(); if(v){ $("scTyped").value=""; handleScan(v,"manual"); } }
+$("scTypedGo").onclick=typedGo;
+$("scTyped").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); typedGo(); }});
+
+async function startCam(){
+  stopCam();
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ $("camMsg").textContent=typedOk()?"No camera here. Type the code below.":"No camera here. Typed codes are turned off. Ask a manager."; return; }
+  try{ S.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false}); }
+  catch(e){ $("camMsg").textContent=typedOk()?"Camera blocked. Type the code below.":"Camera blocked. Allow camera access in the browser."; return; }
+  if(!S.sc){ stopCam(); return; }
+  const v=$("vid"); v.srcObject=S.stream; await v.play().catch(()=>{}); S.scanOn=true;
+  if("BarcodeDetector" in window){ try{ detector=new BarcodeDetector({formats:["qr_code","code_128","code_39","data_matrix"]}); }catch(e){ detector=null; } }
   scanLoop();
 }
-function stopScan(){
-  S.scanOn=false;
-  if(S.scanStream){ S.scanStream.getTracks().forEach(t=>t.stop()); S.scanStream=null; }
-  $("cam").classList.add("hidden"); $("camBtn").textContent="Start camera";
-}
+function stopCam(){ S.scanOn=false; if(S.stream){ S.stream.getTracks().forEach(t=>t.stop()); S.stream=null; } }
+let lastCode="",lastAt=0;
 async function scanLoop(){
-  if(!S.scanOn) return;
+  if(!S.scanOn||!S.sc) return;
   const v=$("vid"); let code=null;
   try{
     if(detector){ const r=await detector.detect(v); if(r.length) code=r[0].rawValue; }
     else if(window.jsQR && v.videoWidth){
-      const cv=scanLoop.cv||(scanLoop.cv=document.createElement("canvas")); const w=Math.min(640,v.videoWidth), h=Math.round(w*v.videoHeight/v.videoWidth);
+      const cv=scanLoop.cv||(scanLoop.cv=document.createElement("canvas")), w=Math.min(640,v.videoWidth), h=Math.round(w*v.videoHeight/v.videoWidth);
       cv.width=w; cv.height=h; const x=cv.getContext("2d",{willReadFrequently:true}); x.drawImage(v,0,0,w,h);
-      const im=x.getImageData(0,0,w,h); const q=jsQR(im.data,w,h); if(q) code=q.data;
+      const q=jsQR(x.getImageData(0,0,w,h).data,w,h); if(q) code=q.data;
     }
   }catch(e){}
-  if(code){ stopScan(); handleCode(code); return; }
-  setTimeout(scanLoop,detector?200:250);
+  if(code && (code!==lastCode || Date.now()-lastAt>2500)){ lastCode=code; lastAt=Date.now(); await handleScan(code,"qr"); }
+  if(S.scanOn&&S.sc) setTimeout(scanLoop,detector?200:250);
 }
-$("camBtn").onclick=()=>{ S.scanOn?stopScan():startScan("tab"); };
-$("typedGo").onclick=()=>{ const c=$("typed").value.trim(); if(c) handleCode(c); };
-$("typed").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("typedGo").click(); }});
-$("locScan").onclick=async()=>{
-  if(S.scanOn){ stopScan(); return; }
-  // quick in-session scan: uses a transient overlay video
-  scanTarget="loc"; $("session").classList.add("hidden"); document.body.style.overflow=""; switchTab("scan"); startScan("loc");
-};
-
-async function handleCode(raw){
-  const code=String(raw).trim(); $("typed").value=code;
-  const box=$("scanResult"); box.innerHTML='<div class="card empty">Looking up '+esc(code)+'…</div>';
-  try{
-    const j=await api("resolve",{code});
-    if(scanTarget==="loc"){
-      scanTarget="tab";
-      const loc=j.location||code; if(S.cur){ saveDraftLoc(loc); $("session").classList.remove("hidden"); document.body.style.overflow="hidden"; $("fLoc").value=loc; saveDraft(); }
-      toast("Location set: "+loc); return;
-    }
-    let h='<div class="card"><h3>'+esc(j.title||code)+'</h3><div class="meta">'+esc(j.detail||"")+'</div>';
-    if(j.session_id) h+='<div style="margin-top:10px"><button class="btn done" data-open="'+esc(j.session_id)+'">Return to session</button></div>';
-    else if(j.run_id) h+='<div style="margin-top:10px"><button class="btn go" id="toRun" data-run="'+esc(j.run_id)+'">Show this run in the queue</button></div>';
-    h+='</div>'; box.innerHTML=h;
-  }catch(e){ box.innerHTML='<div class="card empty">'+esc(e.message)+'<br>Check the code and try again.</div>'; }
-}
-function saveDraftLoc(loc){ try{ const k=draftKey(S.cur); const d=JSON.parse(localStorage.getItem(k)||"{}"); d.loc=loc; localStorage.setItem(k,JSON.stringify(d)); }catch(e){} }
-$("scanResult").addEventListener("click",e=>{
-  const o=e.target.closest("[data-open]"); if(o){ switchTab("sessions"); openSession(o.dataset.open); return; }
-  const r=e.target.closest("[data-run]"); if(r){ S.lane="all"; buildLanes(); switchTab("queue"); renderQueue();
-    const d=[...document.querySelectorAll("#queueList details")].find(x=>x.textContent.includes(r.dataset.run)); if(d){ d.open=true; d.scrollIntoView({block:"center"}); } }
-});
 
 /* ============================ TOAST ============================ */
-let tt; function toast(msg,bad){ const t=$("toast"); t.textContent=msg; t.className=bad?"bad":""; clearTimeout(tt); tt=setTimeout(()=>t.classList.add("hidden"),bad?4500:2200); }
+let tt; function toast(msg,bad){ const t=$("toast"); t.textContent=msg; t.className=bad?"bad":""; clearTimeout(tt); tt=setTimeout(()=>t.classList.add("hidden"),bad?4800:2400); }
 
 /* ============================ INIT ============================ */
 if(loadAuth()) enterApp(); else setLive(false);

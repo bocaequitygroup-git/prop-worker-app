@@ -572,7 +572,7 @@ function tick(){
 
 $("zoneScanBtn").onclick=()=>{
   const t=findTask(S.cur); if(!t) return;
-  openScanner({title:"Scan "+(t.zone?t.zone.label:"zone"),hint:"Point at the zone tag.",allowTyped:typedOk(),
+  openScanner({title:"Scan "+(t.zone?t.zone.label:"zone"),hint:"Point at the zone tag.",allowTyped:typedOk(),zone:t.zone,
     onCode:(code,mode)=>{
       if(!scanPass(code,t.zone)) return {ok:false,msg:"That is not "+(t.zone?t.zone.label:"this zone")+". Scan the right tag."};
       S.zone[t.key]=Object.assign(S.zone[t.key]||{},{start:{code,mode}}); return {ok:true,close:true};
@@ -654,7 +654,7 @@ async function doComplete(t){
     S.busy=false;
   };
   if(!cfg().qrRequired){ await submit(null); return; }
-  openScanner({title:"Scan "+(t.zone?t.zone.label:"zone")+" to submit",hint:"The server needs the zone tag to accept this task.",allowTyped:typedOk(),
+  openScanner({title:"Scan "+(t.zone?t.zone.label:"zone")+" to submit",hint:"The server needs the zone tag to accept this task.",allowTyped:typedOk(),zone:t.zone,
     onCode:(code,mode)=>{
       if(!scanPass(code,t.zone)) return {ok:false,msg:"That is not "+(t.zone?t.zone.label:"this zone")+"."};
       return {ok:true,close:true,value:{code,mode}};
@@ -713,7 +713,7 @@ $("trayBox").addEventListener("click",e=>{
   }
   if(id==="trDest"){
     const run=trayRun();
-    openScanner({title:"Scan "+(run&&run.zone?run.zone.label:"planting zone"),hint:"Point at the planting zone tag.",allowTyped:typedOk(),
+    openScanner({title:"Scan "+(run&&run.zone?run.zone.label:"planting zone"),hint:"Point at the planting zone tag.",allowTyped:typedOk(),zone:run&&run.zone,
       onCode:(code,mode)=>{ if(!scanPass(code,run&&run.zone)) return {ok:false,msg:"That does not match "+(run&&run.zone?run.zone.label:"the zone")+"."}; T.dest={code,mode}; return {ok:true,close:true}; },
       onDone:()=>renderTrays()}); return;
   }
@@ -756,13 +756,11 @@ async function handleScan(code,mode){
   if(r.ok&&r.close){ closeScanner(r.value); return; }
   $("camMsg").textContent=r.msg||"Try again";
 }
-/* No camera: the worker picks the zone from a list instead of typing its code. It still has to be the right zone, and it is logged as a manual entry. */
+/* No camera: the worker confirms the zone this task needs, picked from a one-item list instead of typing its code. It is logged as a manual entry. */
 let ZC=[];
 function fillZonePick(){
-  const seen={}; ZC=[]; const add=z=>{ if(z&&z.label&&(z.codes||[]).length&&!seen[z.label]){ seen[z.label]=1; ZC.push(z); } };
-  ((S.data&&S.data.tasks)||[]).forEach(t=>add(t.zone)); ((S.data&&S.data.runs)||[]).forEach(r=>add(r.zone));
-  ZC.sort((a,b)=>a.label.localeCompare(b.label));
-  $("scPick").innerHTML='<option value="">Choose your zone</option>'+ZC.map((z,i)=>'<option value="'+i+'">'+esc(z.label)+'</option>').join("");
+  const z=S.sc&&S.sc.zone; ZC=z&&z.label&&(z.codes||[]).length?[z]:[];
+  $("scPick").innerHTML=ZC.map((x,i)=>'<option value="'+i+'">'+esc(x.label)+'</option>').join("");
 }
 function pickGo(){ const i=$("scPick").value; if(i==="") return; handleScan(ZC[+i].codes[0],"manual"); }
 $("scTypedGo").onclick=pickGo;

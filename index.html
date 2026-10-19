@@ -102,6 +102,7 @@ details.run>summary::-kit-details-marker{display:none}
 .loc{display:flex;gap:8px}
 .loc input,.loc select{flex:1;min-width:0}
 .hint{font-size:14px;color:var(--muted);margin-top:4px}
+.hint.mvn{color:inherit;border:2px solid var(--pause-ink,#7a3000);background:var(--pause,#ffd8a6);border-radius:10px;padding:6px 10px;margin:8px 0 0;font-size:15px}
 .gate{border:3px solid var(--pause);border-radius:var(--r);padding:12px;margin:12px 0;background:var(--card)}
 
 /* Scan */
@@ -204,7 +205,7 @@ details.run>summary::-kit-details-marker{display:none}
       <div class="clock" id="sClock">0:00:00</div>
       <div class="st" id="sState"></div>
     </div>
-    <div class="card"><div style="font-weight:700" id="sName"></div><div class="meta" id="sDesc"></div><div class="meta" id="sTiming" style="margin-top:6px"></div></div>
+    <div class="card"><div style="font-weight:700" id="sName"></div><div class="meta" id="sDesc"></div><div id="sMove"></div><div class="meta" id="sTiming" style="margin-top:6px"></div></div>
 
     <div class="zone" id="zoneBox">
       <div class="meta">Work zone</div>
@@ -452,6 +453,13 @@ function renderTasks(){
   $("taskList").innerHTML = tasks.length ? tasks.map(taskCard).join("") :
     '<div class="card empty">Nothing assigned to you'+(S.lane==="all"?"":" in this phase")+'.<br>Your manager assigns work from the board.</div>';
 }
+function moveBlock(t){
+  const m=t.reassigned, a=t.assignNote;
+  if(m) return '<div class="hint mvn"><b>Reassigned'+(m.from?' from '+esc(m.from):'')+(m.by?' by '+esc(m.by):'')+'</b>'+(m.note?'<br>Note: '+esc(m.note):'')+'</div>';
+  if(a) return '<div class="hint mvn"><b>Assigned by '+esc(a.by)+'</b><br>Note: '+esc(a.note)+'</div>';
+  return "";
+}
+function descLine(d){ return d?'<div class="meta" style="margin-top:4px">'+esc(d)+'</div>':""; }
 function taskCard(t){
   const s=t.session, paused=s&&s.pausedAt;
   const cls = s ? (paused?"paused-card":"live-card") : (t.locked?"lock":"");
@@ -468,9 +476,9 @@ function taskCard(t){
     : t.locked ? '<button class="btn ghost" disabled>Locked</button>'
     : '<button class="btn go" data-open="'+esc(t.key)+'">Open and start</button>';
   return '<div class="card '+cls+'"><div class="row"><div><h3>'+esc(t.name)+'</h3><div class="meta">'+esc(t.cropName)+' · '+esc(t.runId)+' · platform '+esc(t.platform)+'</div>'
-    +'<div class="meta">'+esc(t.zone?t.zone.label:"")+'</div>'+team+'</div>'
+    +'<div class="meta">'+esc(t.zone?t.zone.label:"")+'</div>'+team+descLine(t.description)+'</div>'
     +'<div class="timer" data-sid="'+esc(s?s.id:"")+'" data-key="'+esc(t.key)+'">'+(s?fmtHMS(netSec(s)):"")+'</div></div>'
-    +'<div>'+chips+'</div>'+lockNote+'<div style="margin-top:10px">'+btn+'</div></div>';
+    +'<div>'+chips+'</div>'+moveBlock(t)+lockNote+'<div style="margin-top:10px">'+btn+'</div></div>';
 }
 $("taskList").addEventListener("click",e=>{ const b=e.target.closest("[data-open]"); if(b) openSession(b.dataset.open); });
 
@@ -478,14 +486,14 @@ function renderFloor(){
   const rows=(S.data.board||[]);
   $("floorList").innerHTML = rows.length ? rows.map(x=>{
     const paused=!!x.pausedAt;
-    return '<div class="card '+(paused?"paused-card":"")+'"><div class="row"><div><h3>'+esc(x.worker)+(x.me?" (you)":"")+'</h3><div class="meta">'+esc(x.activity)+' · '+esc(x.crop)+' · wave '+esc(x.wave)+'</div><div class="meta">'+esc(x.location||"")+'</div>'
+    return '<div class="card '+(paused?"paused-card":"")+'"><div class="row"><div><h3>'+esc(x.worker)+(x.me?" (you)":"")+'</h3><div class="meta">'+esc(x.activity)+' · '+esc(x.crop)+' · wave '+esc(x.wave)+'</div>'+descLine(x.description)+'<div class="meta">'+esc(x.location||"")+'</div>'
       +(paused?'<span class="chip pause">Paused: '+esc(x.pauseReason)+'</span>':'<span class="chip go">Working</span>')+'</div><div class="timer" data-bsid="'+esc(x.id)+'">'+fmtHMS(netSec(x))+'</div></div></div>';
   }).join("") : '<div class="card empty">No one has a session open right now.</div>';
 }
 function renderLog(){
   const rows=(S.data.log||[]);
   $("logList").innerHTML = rows.length ? rows.map(r=>
-    '<div class="card"><div class="row"><div><h3>'+esc(r.activity)+'</h3><div class="meta">'+esc(r.crop)+' · wave '+esc(r.wave)+'</div><div class="meta">'+esc(r.location||"")+'</div></div><div class="timer">'+esc(Math.round(+r.minutes||0))+' min</div></div>'
+    '<div class="card"><div class="row"><div><h3>'+esc(r.activity)+'</h3><div class="meta">'+esc(r.crop)+' · wave '+esc(r.wave)+'</div>'+descLine(r.description)+'<div class="meta">'+esc(r.location||"")+'</div></div><div class="timer">'+esc(Math.round(+r.minutes||0))+' min</div></div>'
     +(r.quantity!==""&&r.quantity!=null?'<span class="chip">'+esc(r.quantity)+' '+esc(r.unit||"")+'</span>':'')
     +'<span class="chip">'+esc(r.outcome||"")+'</span>'+(r.verified?'<span class="chip go">Verified'+(r.verifiedBy?' by '+esc(r.verifiedBy):'')+'</span>':'')
     +'<div class="meta" style="margin-top:6px">'+esc(fmtDT(r.closedAt))+'</div></div>').join("")
@@ -531,7 +539,7 @@ function renderSession(first){
   const s=t.session, paused=!!(s&&s.pausedAt), z=t.zone||{label:""};
   $("sTitle").firstChild.nodeValue=t.name; $("sSub").textContent=s?s.id:t.runId;
   $("sCrop").textContent=t.cropName+" · "+t.runId+(s?" · wave "+s.wave:"");
-  $("sName").textContent=t.name; $("sDesc").textContent=t.description||""; $("sTiming").textContent=t.timing?("Typical timing: "+t.timing):"";
+  $("sName").textContent=t.name; $("sDesc").textContent=t.description||""; $("sMove").innerHTML=moveBlock(t); $("sTiming").textContent=t.timing?("Typical timing: "+t.timing):"";
   $("sState").textContent = !s ? "Not started" : paused ? "Paused: "+s.pauseReason : "In progress";
   $("zoneLabel").textContent=z.label||"Zone not set";
   const key=t.key, need=cfg().qrRequired, got=S.zone[key]&&S.zone[key].start;

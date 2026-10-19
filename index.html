@@ -455,8 +455,8 @@ function renderTasks(){
 }
 function moveBlock(t){
   const m=t.reassigned, a=t.assignNote;
-  if(m) return '<div class="hint mvn"><b>Reassigned'+(m.from?' from '+esc(m.from):'')+(m.by?' by '+esc(m.by):'')+'</b>'+(m.note?'<br>Note: '+esc(m.note):'')+'</div>';
-  if(a) return '<div class="hint mvn"><b>Assigned by '+esc(a.by)+'</b><br>Note: '+esc(a.note)+'</div>';
+  if(m) return '<div class="hint mvn"><b>Reassigned: from '+esc(m.from||"no one")+' to '+esc(m.to||"you")+' (you) by '+esc(m.by||"the manager")+'</b>'+(m.note?'<br>Note from '+esc(m.by||"the manager")+': '+esc(m.note):'')+'</div>';
+  if(a) return '<div class="hint mvn"><b>Added to this task by '+esc(a.by)+'</b><br>Note from '+esc(a.by)+': '+esc(a.note)+'</div>';
   return "";
 }
 function descLine(d){ return d?'<div class="meta" style="margin-top:4px">'+esc(d)+'</div>':""; }
@@ -470,7 +470,7 @@ function taskCard(t){
   if(t.requiresCount) chips+='<span class="chip">Count</span>';
   if(t.due) chips+='<span class="chip">Due '+esc(fmtDue(t.due))+'</span>';
   if(t.waves>1) chips+='<span class="chip">Waves done '+t.doneWaves.length+' of '+t.waves+'</span>';
-  const team=(t.team||[]).length?'<div class="meta">With '+esc(t.team.join(", "))+'</div>':"";
+  const team=(t.team||[]).length?'<div class="meta">Also assigned: '+esc(t.team.join(", "))+'</div>':"";
   const lockNote=t.locked&&!s?'<div class="hint">Locked until the pre-sowing and post-transplant activities for this run are verified.</div>':"";
   const btn = s ? '<button class="btn done" data-open="'+esc(t.key)+'">Return to session</button>'
     : t.locked ? '<button class="btn ghost" disabled>Locked</button>'

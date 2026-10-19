@@ -355,8 +355,9 @@ function setLive(ok){
 }
 
 /* ============================ AUTH ============================ */
-function saveAuth(){ try{ localStorage.setItem("prop_auth",JSON.stringify({t:S.token,m:S.me})); }catch(e){} }
-function loadAuth(){ try{ const a=JSON.parse(localStorage.getItem("prop_auth")||"null"); if(a&&a.t){S.token=a.t;S.me=a.m;return true;} }catch(e){} return false; }
+function saveAuth(){ try{ sessionStorage.setItem("prop_auth",JSON.stringify({t:S.token,m:S.me})); }catch(e){} }
+function loadAuth(){ try{ localStorage.removeItem("prop_auth"); }catch(e){}   /* older versions kept the sign-in here, shared by every tab */
+  try{ const a=JSON.parse(sessionStorage.getItem("prop_auth")||"null"); if(a&&a.t){S.token=a.t;S.me=a.m;return true;} }catch(e){} return false; }
 $("loginForm").addEventListener("submit", async ev=>{
   ev.preventDefault();
   const u=$("u").value.trim(), p=$("p").value;
@@ -378,7 +379,7 @@ $("loginForm").addEventListener("submit", async ev=>{
 function doLogout(expired){
   clearInterval(S.poll); clearInterval(S.tick); stopCam();
   if(!expired && S.token){ api("logout").catch(()=>{}); }
-  S.token=null;S.data=null;S.cur=null; try{localStorage.removeItem("prop_auth");}catch(e){}
+  S.token=null;S.data=null;S.cur=null; try{sessionStorage.removeItem("prop_auth");}catch(e){}
   ["session","scanner"].forEach(i=>$(i).classList.add("hidden")); document.body.style.overflow="";
   $("app").classList.add("hidden"); $("login").classList.remove("hidden");
   $("loginErr").textContent = expired ? "Session ended. Sign in again." : "";

@@ -100,7 +100,7 @@ details.run>summary::-kit-details-marker{display:none}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .controls{display:grid;gap:10px;margin:12px 0}
 .loc{display:flex;gap:8px}
-.loc input{flex:1}
+.loc input,.loc select{flex:1;min-width:0}
 .hint{font-size:14px;color:var(--muted);margin-top:4px}
 .gate{border:3px solid var(--pause);border-radius:var(--r);padding:12px;margin:12px 0;background:var(--card)}
 
@@ -249,7 +249,7 @@ details.run>summary::-kit-details-marker{display:none}
     <div class="ttl2" id="scTitle"></div>
     <div class="hint" id="scHint"></div>
     <div class="found hidden" id="scFound"></div>
-    <div class="loc hidden" id="scTypedRow"><input class="t" id="scTyped" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Type the code"><button class="btn done sm" id="scTypedGo" type="button">Use code</button></div>
+    <div class="loc hidden" id="scTypedRow"><select class="t" id="scPick" aria-label="Choose the zone"></select><button class="btn done sm" id="scTypedGo" type="button">Use zone</button></div>
     <button class="btn ghost" id="scClose" type="button">Cancel</button>
   </div>
 </section>
@@ -734,7 +734,7 @@ async function submitTrays(){
 let detector=null;
 function openScanner(opts){
   S.sc=opts; $("scTitle").textContent=opts.title; $("scHint").textContent=opts.hint||""; $("camMsg").textContent="Point at the tag";
-  $("scTypedRow").classList.toggle("hidden",!opts.allowTyped); $("scTyped").value="";
+  $("scTypedRow").classList.toggle("hidden",!opts.allowTyped); if(opts.allowTyped) fillZonePick();
   const f=$("scFound"); f.classList.toggle("hidden",!opts.multi); f.textContent="";
   $("scClose").textContent=opts.multi?"Done":"Cancel";
   $("scanner").classList.remove("hidden"); document.body.style.overflow="hidden";
@@ -756,15 +756,22 @@ async function handleScan(code,mode){
   if(r.ok&&r.close){ closeScanner(r.value); return; }
   $("camMsg").textContent=r.msg||"Try again";
 }
-function typedGo(){ const v=$("scTyped").value.trim(); if(v){ $("scTyped").value=""; handleScan(v,"manual"); } }
-$("scTypedGo").onclick=typedGo;
-$("scTyped").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); typedGo(); }});
+/* No camera: the worker picks the zone from a list instead of typing its code. It still has to be the right zone, and it is logged as a manual entry. */
+let ZC=[];
+function fillZonePick(){
+  const seen={}; ZC=[]; const add=z=>{ if(z&&z.label&&(z.codes||[]).length&&!seen[z.label]){ seen[z.label]=1; ZC.push(z); } };
+  ((S.data&&S.data.tasks)||[]).forEach(t=>add(t.zone)); ((S.data&&S.data.runs)||[]).forEach(r=>add(r.zone));
+  ZC.sort((a,b)=>a.label.localeCompare(b.label));
+  $("scPick").innerHTML='<option value="">Choose your zone</option>'+ZC.map((z,i)=>'<option value="'+i+'">'+esc(z.label)+'</option>').join("");
+}
+function pickGo(){ const i=$("scPick").value; if(i==="") return; handleScan(ZC[+i].codes[0],"manual"); }
+$("scTypedGo").onclick=pickGo;
 
 async function startCam(){
   stopCam();
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ $("camMsg").textContent=typedOk()?"No camera here. Type the code below.":"No camera here. Typed codes are turned off. Ask a manager."; return; }
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ $("camMsg").textContent=typedOk()?"No camera here. Choose the zone below.":"No camera here. Choosing a zone by hand is turned off. Ask a manager."; return; }
   try{ S.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false}); }
-  catch(e){ $("camMsg").textContent=typedOk()?"Camera blocked. Type the code below.":"Camera blocked. Allow camera access in the browser."; return; }
+  catch(e){ $("camMsg").textContent=typedOk()?"Camera blocked. Choose the zone below.":"Camera blocked. Allow camera access in the browser."; return; }
   if(!S.sc){ stopCam(); return; }
   const v=$("vid"); v.srcObject=S.stream; await v.play().catch(()=>{}); S.scanOn=true;
   if("BarcodeDetector" in window){ try{ detector=new BarcodeDetector({formats:["qr_code","code_128","code_39","data_matrix"]}); }catch(e){ detector=null; } }

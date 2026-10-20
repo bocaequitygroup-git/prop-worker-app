@@ -121,6 +121,9 @@ details.run>summary::-kit-details-marker{display:none}
 .reasons{display:grid;gap:8px}
 .reasons button{min-height:56px;border-radius:12px;border:2px solid var(--line);background:var(--bg);font-weight:700;text-align:left;padding:10px 14px;cursor:pointer}
 .reasons button[aria-pressed=true]{border-color:var(--pause);background:var(--pause);color:var(--pause-ink)}
+#work{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.62);display:grid;place-items:center;padding:20px}#work .wc{background:var(--bg);color:var(--ink);border:3px solid var(--ink);border-radius:18px;padding:22px 20px;width:min(340px,100%);text-align:center;display:grid;gap:12px}
+#work .sp{width:56px;height:56px;margin:0 auto;border:7px solid var(--line,#c5d0c8);border-top-color:var(--go,#1fa855);border-radius:50%;animation:wspin .9s linear infinite}@keyframes wspin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){#work .sp{animation-duration:3s}}
+#work .wt{font-size:20px;font-weight:700}#work .ws{font-size:15px;opacity:.85;min-height:20px}#work .wb{height:10px;border:2px solid var(--ink);border-radius:6px;overflow:hidden}#work .wb i{display:block;height:100%;width:0;background:var(--go,#1fa855);transition:width .5s}
 #toast{position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:80;background:var(--ink);color:var(--bg);padding:14px 16px;border-radius:12px;font-weight:700;text-align:center;max-width:560px;margin:0 auto}
 #toast.bad{background:var(--warn);color:#fff}
 
@@ -275,6 +278,7 @@ details.run>summary::-kit-details-marker{display:none}
   </div>
 </div>
 
+<div id="work" class="hidden" role="alertdialog" aria-live="assertive" aria-busy="true" aria-label="Working"><div class="wc"><div class="sp"></div><div class="wt" id="wTxt">Working…</div><div class="wb"><i id="wBar"></i></div><div class="ws" id="wSub"></div></div></div>
 <div id="toast" class="hidden" role="status"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
@@ -620,20 +624,20 @@ $("sControls").addEventListener("click",async e=>{
 
 async function doStart(t){
   const z=S.zone[t.key]&&S.zone[t.key].start, wave=t.waves>1?+$("fWave").value:1;
-  S.busy=true;
+  S.busy=true; W.on(2,"Starting your activity…");
   try{
     const j=await api("wStart",{runId:t.runId,activityId:t.activityId,wave,zoneScan:z?z.code:"",scanMode:z?z.mode:"qr",equipment:$("fEquip").value.trim(),at:nowMs()});
-    await refresh(); renderSession(false); toast(j.already?"You already had this session open":"Session started");
+    W.set("Started. Loading your session…"); await refresh(); renderSession(false); toast(j.already?"You already had this session open":"Session started");
   }catch(e){ toast(e.message,true); }
-  S.busy=false;
+  W.off(); S.busy=false;
 }
 async function doResume(t){
-  const s=t.session; S.busy=true;
+  const s=t.session; S.busy=true; W.on(2,"Resuming your activity…");
   try{
     const r=await send("wResume",{sessionId:s.id},()=>{ s.pausedSec=(+s.pausedSec||0)+Math.max(0,(nowMs()-Date.parse(s.pausedAt))/1000); s.pausedAt=""; s.pauseReason=""; renderSession(false); renderTasks(); });
-    if(!r.queued){ await refresh(); toast("Resumed"); }
+    if(!r.queued){ W.set("Updating your list…"); await refresh(); toast("Resumed"); }
   }catch(e){ toast(e.message,true); }
-  S.busy=false;
+  W.off(); S.busy=false;
 }
 
 /* pause modal: only the four reasons the server accepts; a stall also needs a note and alerts the manager */
@@ -650,12 +654,12 @@ $("pmOk").onclick=async()=>{
   const t=findTask(S.cur); if(!t||!S.pauseReason) return;
   const reason=S.pauseReason, note=$("pmNote").value.trim(), s=t.session;
   if(reason===CFG.STALL && !note){ toast("Say what is stalled so the manager can help.",true); $("pmNote").focus(); return; }
-  $("pauseModal").classList.add("hidden"); S.busy=true;
+  $("pauseModal").classList.add("hidden"); S.busy=true; W.on(2,"Pausing your activity…");
   try{
     const r=await send("wPause",{sessionId:s.id,reason,note},()=>{ s.pausedAt=new Date(nowMs()).toISOString(); s.pauseReason=reason; renderSession(false); renderTasks(); });
-    if(!r.queued){ await refresh(); toast("Paused"); }
+    if(!r.queued){ W.set("Updating your list…"); await refresh(); toast("Paused"); }
   }catch(e){ toast(e.message,true); }
-  S.busy=false;
+  W.off(); S.busy=false;
 };
 
 /* complete: count gate first, then the zone scan the server requires, then one save */
@@ -668,19 +672,20 @@ async function doComplete(t){
   }
   if(!confirm((fin?"Finish ":"Save partial work on ")+t.name+"? This goes to the permanent log.")) return;
   const submit=async scan=>{
-    S.busy=true;
+    S.busy=true; W.on(3,"Saving your work…");
     try{
       const cond={soilMoisture:$("fMoist").value,weather:$("fWeather").value,tempF:$("fTemp").value};
       const equip=$("fEquip").value.trim();
       if(equip||cond.soilMoisture||cond.weather||cond.tempF) await send("updateSession",{sessionId:s.id,equipment:equip||undefined,conditions:cond});
       const inputs=$("fInputs").value.trim(), notes=[$("fNotes").value.trim(), inputs?"Inputs: "+inputs:""].filter(Boolean).join(" | ");
       const body={sessionId:s.id,completed:fin,quantity:qty===""?"":Number(qty),unit:qty===""?"":unit,notes,zoneScan:scan?scan.code:"",scanMode:scan?scan.mode:"qr"};
+      W.set(fin?"Saving to the permanent log…":"Saving your partial work…");
       const r=await send("wClose",body,()=>{ S.hide[t.key]=true; });
       try{ localStorage.removeItem(draftKey(t.key)); }catch(e){}
       delete S.zone[t.key]; closeSessionScreen();
-      if(r.queued){ renderTasks(); renderBadge(); } else { await refresh(); toast("Saved to the log"+(r.netMin!=null?": "+r.netMin+" min worked":"")); }
+      if(r.queued){ renderTasks(); renderBadge(); } else { W.set("Saved. Updating your task list…"); await refresh(); toast("Saved to the log"+(r.netMin!=null?": "+r.netMin+" min worked":"")); }
     }catch(e){ toast(e.message,true); }
-    S.busy=false;
+    W.off(); S.busy=false;
   };
   if(!cfg().qrRequired){ await submit(null); return; }
   openScanner({title:"Scan "+(t.zone?t.zone.label:"zone")+" to submit",hint:"The server needs the zone tag to accept this task.",allowTyped:typedOk(),zone:t.zone,
@@ -822,6 +827,12 @@ async function scanLoop(){
 }
 
 /* ============================ TOAST ============================ */
+/* progress overlay: blocks taps, shows the current step, a step bar and elapsed time, and warns when the server is slow */
+const W = { t0:0, iv:null, n:0, total:1,
+  on(total, msg){ W.off(true); W.t0=Date.now(); W.n=0; W.total=total||1; $("work").classList.remove("hidden"); W.set(msg);
+    W.iv=setInterval(()=>{ const s=Math.round((Date.now()-W.t0)/1000); $("wSub").textContent= s<6 ? "Please keep this screen open." : s<20 ? "Still working… "+s+" s. The server is a little slow, please wait." : "Still working… "+s+" s. Do not close the app; this can take up to a minute."; },1000); $("wSub").textContent="Please keep this screen open."; },
+  set(msg){ W.n++; $("wTxt").textContent=msg; $("wBar").style.width=Math.min(95,Math.round(W.n/(W.total+1)*100))+"%"; },
+  off(quiet){ clearInterval(W.iv); W.iv=null; $("work").classList.add("hidden"); $("wBar").style.width="0"; } };
 let tt; function toast(msg,bad){ const t=$("toast"); t.textContent=msg; t.className=bad?"bad":""; clearTimeout(tt); tt=setTimeout(()=>t.classList.add("hidden"),bad?4800:2400); }
 
 /* ============================ INIT ============================ */

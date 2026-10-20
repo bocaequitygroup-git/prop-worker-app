@@ -60,6 +60,9 @@ header.top .ttl small{display:block;font-weight:400;opacity:.8;font-size:13px;wh
 @media (prefers-reduced-motion:reduce){.live.ok i{animation:none}}
 .iconbtn{background:rgba(255,255,255,.12);border:0;color:inherit;min-width:46px;min-height:46px;border-radius:12px;font-size:20px;cursor:pointer}
 main{padding:14px 14px calc(96px + env(safe-area-inset-bottom,0px));max-width:720px;margin:0 auto}
+#resume{position:fixed;left:0;right:0;z-index:45;display:flex;gap:10px;align-items:center;padding:10px 14px;min-height:56px;border:0;border-top:3px solid var(--ink);background:var(--go);color:var(--go-ink);font:inherit;font-weight:700;font-size:16px;text-align:left;cursor:pointer;width:100%}
+#resume.paused{background:var(--pause);color:var(--pause-ink)}#resume b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#resume .go{white-space:nowrap}
+body.hasresume main{padding-bottom:150px}body.hasresume #session .inner{padding-bottom:130px}
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-top:2px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);
   padding-bottom:env(safe-area-inset-bottom,0px)}
 nav.tabs button{background:none;border:0;min-height:66px;font-weight:700;font-size:14px;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative;cursor:pointer}
@@ -191,6 +194,8 @@ details.run>summary::-kit-details-marker{display:none}
     <button role="tab" data-tab="log" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Done</button>
   </nav>
 </div>
+
+<button id="resume" class="hidden" type="button" aria-label="Back to your running session"></button>
 
 <!-- SESSION SCREEN -->
 <section id="session" class="hidden" aria-label="Work session">
@@ -436,7 +441,7 @@ function zoneOk(scan,z){
 const scanPass = (code,z) => !cfg().qrRequired || zoneOk(code,z);
 
 /* ============================ RENDER ============================ */
-function renderAll(){ renderTasks(); renderBadge(); renderFloor(); renderLog(); renderTrays(); setLive(true); }
+function renderAll(){ renderTasks(); renderBadge(); renderFloor(); renderLog(); renderTrays(); setLive(true); updateResume(); }
 function renderBadge(){
   const n=(S.data.tasks||[]).filter(t=>!S.hide[t.key]).length, b=$("sessBadge");
   b.textContent=n; b.classList.toggle("hidden",!n);
@@ -529,15 +534,15 @@ $("session").addEventListener("input",saveDraft);
 
 function openSession(key){
   const t=findTask(key); if(!t){ toast("That task is no longer on your list.",true); return; }
-  S.cur=key; applyDraft(t); $("session").classList.remove("hidden"); document.body.style.overflow="hidden"; renderSession(true);
+  S.cur=key; applyDraft(t); $("session").classList.remove("hidden"); document.body.style.overflow="hidden"; renderSession(true); updateResume();
 }
-function closeSessionScreen(){ S.cur=null; $("session").classList.add("hidden"); document.body.style.overflow=""; }
+function closeSessionScreen(){ S.cur=null; $("session").classList.add("hidden"); document.body.style.overflow=""; updateResume(); }
 $("sBack").onclick=()=>{ saveDraft(); closeSessionScreen(); refresh(); };
 
 function renderSession(first){
   const t=findTask(S.cur); if(!t){ closeSessionScreen(); return; }
   const s=t.session, paused=!!(s&&s.pausedAt), z=t.zone||{label:""};
-  $("sTitle").firstChild.nodeValue=t.name; $("sSub").textContent=s?s.id:t.runId;
+  $("sTitle").firstChild.nodeValue=t.name; $("sSub").textContent=(S.me?S.me.name+" · "+S.me.role+" · ":"")+(s?s.id:t.runId);
   $("sCrop").textContent=t.cropName+" · "+t.runId+(s?" · wave "+s.wave:"");
   $("sName").textContent=t.name; $("sDesc").textContent=t.description||""; $("sMove").innerHTML=moveBlock(t); $("sTiming").textContent=t.timing?("Typical timing: "+t.timing):"";
   $("sState").textContent = !s ? "Not started" : paused ? "Paused: "+s.pauseReason : "In progress";
@@ -572,11 +577,24 @@ function updateClock(){
   const t=findTask(S.cur); if(!t) return;
   $("sClock").textContent = t.session ? fmtHMS(netSec(t.session)) : "0:00:00";
 }
+function runningTask(){ const l=((S.data&&S.data.tasks)||[]).filter(t=>t.session&&!S.hide[t.key]); return l.find(t=>!t.session.pausedAt)||l[0]||null; }
+function updateResume(){
+  const el=$("resume"); if(!el) return;
+  const t=(S.me&&S.data&&!$("app").classList.contains("hidden"))?runningTask():null, show=!!t&&S.cur!==t.key;
+  el.classList.toggle("hidden",!show); document.body.classList.toggle("hasresume",show);
+  if(!show) return;
+  const s=t.session, paused=!!s.pausedAt;
+  el.classList.toggle("paused",paused);
+  el.style.bottom=$("session").classList.contains("hidden")?"calc(66px + env(safe-area-inset-bottom,0px))":"env(safe-area-inset-bottom,0px)";
+  el.innerHTML='<span>'+(paused?"\u23F8 Paused":"\u25B6 In progress")+'</span><b>'+esc(t.name)+'</b><span>'+fmtHMS(netSec(s))+'</span><span class="go">Back to session \u203A</span>';
+}
+$("resume").onclick=()=>{ const t=runningTask(); if(!t) return; if(S.cur) saveDraft(); openSession(t.key); };
 function tick(){
   updateClock();
   document.querySelectorAll(".timer[data-key]").forEach(el=>{ const t=findTask(el.dataset.key); if(t&&t.session) el.textContent=fmtHMS(netSec(t.session)); });
   document.querySelectorAll(".timer[data-bsid]").forEach(el=>{ const x=(S.data.board||[]).find(b=>b.id===el.dataset.bsid); if(x) el.textContent=fmtHMS(netSec(x)); });
   setLive(S.lastOk>0&&Date.now()-S.lastOk<CFG.SLOW_MS*3);
+  updateResume();
 }
 
 $("zoneScanBtn").onclick=()=>{

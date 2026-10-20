@@ -128,6 +128,8 @@ details.run>summary::-kit-details-marker{display:none}
 .sc .cam{max-height:none;flex:1;border-radius:0;aspect-ratio:auto}
 .sc .panel{padding:12px 14px calc(14px + env(safe-area-inset-bottom,0px));display:grid;gap:10px;background:var(--card);border-top:2px solid var(--line)}
 .sc .ttl2{font-weight:700;font-size:19px}
+.sc .loc{flex-direction:column}.sc .loc .btn{min-height:56px;width:100%}.sc .manual{border:3px solid var(--go,#0a5a28);border-radius:var(--r);padding:10px;display:grid;gap:8px}
+.sc .cam.nocam{flex:0 0 auto;aspect-ratio:auto;min-height:110px;display:flex;align-items:center;justify-content:center}.sc .cam.nocam video,.sc .cam.nocam .frame{display:none}.sc .cam.nocam .msg{position:static;padding:10px}
 .sc .found{max-height:96px;overflow:auto;font-size:15px}
 .zone{border:3px solid var(--line);border-radius:var(--r);padding:12px;background:var(--card);margin:12px 0}
 .zone.ok{border-color:var(--go)}
@@ -255,7 +257,7 @@ details.run>summary::-kit-details-marker{display:none}
     <div class="ttl2" id="scTitle"></div>
     <div class="hint" id="scHint"></div>
     <div class="found hidden" id="scFound"></div>
-    <div class="loc hidden" id="scTypedRow"><select class="t" id="scPick" aria-label="Choose the zone"></select><button class="btn done sm" id="scTypedGo" type="button">Use zone</button></div>
+    <div class="manual hidden" id="scTypedRow"><div class="hint" style="margin:0"><b>Camera not working or tag damaged?</b> Confirm the zone by hand. It is logged as a manual entry.</div><div class="loc"><select class="t" id="scPick" aria-label="Choose the zone"></select><button class="btn done" id="scTypedGo" type="button">Use this zone</button></div></div>
     <button class="btn ghost" id="scClose" type="button">Cancel</button>
   </div>
 </section>
@@ -761,7 +763,7 @@ async function submitTrays(){
 let detector=null;
 function openScanner(opts){
   S.sc=opts; $("scTitle").textContent=opts.title; $("scHint").textContent=opts.hint||""; $("camMsg").textContent="Point at the tag";
-  $("scTypedRow").classList.toggle("hidden",!opts.allowTyped); if(opts.allowTyped) fillZonePick();
+  $("cam").classList.remove("nocam"); $("scTypedRow").classList.toggle("hidden",!opts.allowTyped); if(opts.allowTyped) fillZonePick();
   const f=$("scFound"); f.classList.toggle("hidden",!opts.multi); f.textContent="";
   $("scClose").textContent=opts.multi?"Done":"Cancel";
   $("scanner").classList.remove("hidden"); document.body.style.overflow="hidden";
@@ -789,14 +791,14 @@ function fillZonePick(){
   const z=S.sc&&S.sc.zone; ZC=z&&z.label&&(z.codes||[]).length?[z]:[];
   $("scPick").innerHTML=ZC.map((x,i)=>'<option value="'+i+'">'+esc(x.label)+'</option>').join("");
 }
-function pickGo(){ const i=$("scPick").value; if(i==="") return; handleScan(ZC[+i].codes[0],"manual"); }
+function pickGo(){ const i=$("scPick").value; if(i===""||!ZC[+i]){ $("camMsg").textContent="No zone is set for this task. Ask a manager."; toast("No zone is set for this task. Ask a manager.",true); return; } handleScan(ZC[+i].codes[0],"manual"); }
 $("scTypedGo").onclick=pickGo;
 
 async function startCam(){
   stopCam();
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ $("camMsg").textContent=typedOk()?"No camera here. Choose the zone below.":"No camera here. Choosing a zone by hand is turned off. Ask a manager."; return; }
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ $("cam").classList.add("nocam"); $("camMsg").textContent=typedOk()?"No camera here. Choose the zone below.":"No camera here. Choosing a zone by hand is turned off. Ask a manager."; return; }
   try{ S.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false}); }
-  catch(e){ $("camMsg").textContent=typedOk()?"Camera blocked. Choose the zone below.":"Camera blocked. Allow camera access in the browser."; return; }
+  catch(e){ $("cam").classList.add("nocam"); $("camMsg").textContent=typedOk()?"Camera blocked. Choose the zone below.":"Camera blocked. Allow camera access in the browser."; return; }
   if(!S.sc){ stopCam(); return; }
   const v=$("vid"); v.srcObject=S.stream; await v.play().catch(()=>{}); S.scanOn=true;
   if("BarcodeDetector" in window){ try{ detector=new BarcodeDetector({formats:["qr_code","code_128","code_39","data_matrix"]}); }catch(e){ detector=null; } }

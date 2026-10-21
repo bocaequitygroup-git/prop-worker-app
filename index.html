@@ -489,7 +489,7 @@ function taskCard(t){
     : t.locked ? '<button class="btn ghost" disabled>Locked</button>'
     : t.waves>1 && !nextW ? '<button class="btn ghost" disabled>All waves submitted</button>'
     : '<button class="btn go" data-open="'+esc(t.key)+'">'+(t.waves>1?'Start wave '+nextW:'Open and start')+'</button>';
-  return '<div class="card '+cls+'"><div class="row"><div><h3>'+esc(t.activityId)+' · '+esc(t.name)+'</h3><div class="meta">'+esc(t.cropName)+' · '+esc(t.runId)+' · platform '+esc(t.platform)+'</div>'
+  return '<div class="card '+cls+'"><div class="row"><div><h3>'+esc(t.activityId)+' · '+esc(t.name)+(t.waves>1?' · Wave '+(s?s.wave:(nextW||'–')):'')+'</h3><div class="meta">'+esc(t.cropName)+' · '+esc(t.runId)+' · platform '+esc(t.platform)+'</div>'
     +'<div class="meta">'+esc(t.zone?t.zone.label:"")+'</div>'+team+descLine(t.description)+'</div>'
     +'<div class="timer" data-sid="'+esc(s?s.id:"")+'" data-key="'+esc(t.key)+'">'+(s?fmtHMS(netSec(s)):"")+'</div></div>'
     +'<div>'+chips+'</div>'+moveBlock(t)+lockNote+'<div style="margin-top:10px">'+btn+'</div></div>';

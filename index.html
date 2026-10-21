@@ -833,7 +833,7 @@ const W = { t0:0, iv:null, n:0, total:1,
     W.iv=setInterval(()=>{ const s=Math.round((Date.now()-W.t0)/1000); $("wSub").textContent= s<6 ? "Please keep this screen open." : s<20 ? "Still working… "+s+" s. The server is a little slow, please wait." : "Still working… "+s+" s. Do not close the app; this can take up to a minute."; },1000); $("wSub").textContent="Please keep this screen open."; },
   set(msg){ W.n++; $("wTxt").textContent=msg; $("wBar").style.width=Math.min(95,Math.round(W.n/(W.total+1)*100))+"%"; },
   off(quiet){ clearInterval(W.iv); W.iv=null; $("work").classList.add("hidden"); $("wBar").style.width="0"; } };
-let tt; function toast(msg,bad){ const t=$("toast"); t.textContent=msg; t.className=bad?"bad":""; clearTimeout(tt); tt=setTimeout(()=>t.classList.add("hidden"),bad?4800:2400); }
+let tt; function toast(msg,bad){ const t=$("toast"); t.textContent=msg; t.className=bad?"bad":""; clearTimeout(tt); tt=setTimeout(()=>t.classList.add("hidden"),bad?9000:2400); }
 
 /* ============================ INIT ============================ */
 if(loadAuth()) enterApp(); else setLive(false);

@@ -320,7 +320,7 @@ async function api(action, payload){
   try{ j = await res.json(); }catch(e){ setLive(false); throw new Error("Server sent an unreadable reply. Check the web app URL."); }
   if(j && j.error){
     if(/^AUTH/.test(j.error) && S.token){ doLogout(true); throw new Error("Session ended. Sign in again."); }
-    throw new Error(String(j.error).replace(/^AUTH:\s*/,""));
+    throw new Error(String(j.error).replace(/^AUTH:\s*/,"") + (/^Unknown action\s*$/.test(String(j.error)) ? " (\""+action+"\" is not in the deployed script)" : ""));
   }
   S.lastOk = Date.now(); setLive(true);
   return j;

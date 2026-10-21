@@ -448,8 +448,11 @@ const scanPass = (code,z) => !cfg().qrRequired || zoneOk(code,z);
 
 /* ============================ RENDER ============================ */
 function renderAll(){ renderTasks(); renderBadge(); renderFloor(); renderLog(); renderTrays(); setLive(true); updateResume(); }
+/* My sessions lists only live work: a session in progress or paused, or a task with a wave still to start. Fully submitted work lives under Done. */
+const owOf=t=>(t.openWaves&&t.openWaves.length)?t.openWaves:Array.from({length:t.waves||1},(_,i)=>i+1);
+const isActive=t=>!!t.session||owOf(t).some(w=>!(t.doneWaves||[]).includes(w));
 function renderBadge(){
-  const n=(S.data.tasks||[]).filter(t=>!S.hide[t.key]).length, b=$("sessBadge");
+  const n=(S.data.tasks||[]).filter(t=>!S.hide[t.key]&&isActive(t)).length, b=$("sessBadge");
   b.textContent=n; b.classList.toggle("hidden",!n);
 }
 function buildLanes(){
@@ -460,9 +463,9 @@ $("lanes").addEventListener("click",e=>{ const b=e.target.closest("[data-lane]")
 
 function renderTasks(){
   const lane=CFG.LANES.find(l=>l.id===S.lane)||CFG.LANES[0];
-  const tasks=(S.data.tasks||[]).filter(t=>!S.hide[t.key]&&lane.phases.includes(phaseNum(t)));
+  const tasks=(S.data.tasks||[]).filter(t=>!S.hide[t.key]&&isActive(t)&&lane.phases.includes(phaseNum(t)));
   $("taskList").innerHTML = tasks.length ? tasks.map(taskCard).join("") :
-    '<div class="card empty">Nothing assigned to you'+(S.lane==="all"?"":" in this phase")+'.<br>Your manager assigns work from the board.</div>';
+    '<div class="card empty">Nothing assigned to you'+(S.lane==="all"?"":" in this phase")+'.<br>Your manager assigns work from the board. Finished work is under Done.</div>';
 }
 function moveBlock(t){
   const m=t.reassigned, a=t.assignNote;

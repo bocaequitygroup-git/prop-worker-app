@@ -480,13 +480,16 @@ function taskCard(t){
   if(t.reassigned) chips+='<span class="chip re">Reassigned from '+esc(t.reassigned.from||"another worker")+'</span>';
   if(t.requiresCount) chips+='<span class="chip">Count</span>';
   if(t.due) chips+='<span class="chip">Due '+esc(fmtDue(t.due))+'</span>';
-  if(t.waves>1) chips+='<span class="chip">Waves done '+t.doneWaves.length+' of '+t.waves+'</span>';
+  const ow=(t.openWaves&&t.openWaves.length)?t.openWaves:Array.from({length:t.waves},(_,i)=>i+1);
+  const nextW = t.waves>1 ? (ow.find(x=>!t.doneWaves.includes(x))||0) : 1;
+  if(t.waves>1) chips+='<span class="chip">Open waves: '+ow.join(", ")+' · submitted: '+(t.doneWaves.length?t.doneWaves.slice().sort((a,b)=>a-b).join(", "):"none")+'</span>';
   const team=(t.team||[]).length?'<div class="meta">Also assigned: '+esc(t.team.join(", "))+'</div>':"";
   const lockNote=t.locked&&!s?'<div class="hint">Locked until the pre-sowing and post-transplant activities for this run are verified.</div>':"";
   const btn = s ? '<button class="btn done" data-open="'+esc(t.key)+'">Return to session</button>'
     : t.locked ? '<button class="btn ghost" disabled>Locked</button>'
-    : '<button class="btn go" data-open="'+esc(t.key)+'">Open and start</button>';
-  return '<div class="card '+cls+'"><div class="row"><div><h3>'+esc(t.name)+'</h3><div class="meta">'+esc(t.cropName)+' · '+esc(t.runId)+' · platform '+esc(t.platform)+'</div>'
+    : t.waves>1 && !nextW ? '<button class="btn ghost" disabled>All waves submitted</button>'
+    : '<button class="btn go" data-open="'+esc(t.key)+'">'+(t.waves>1?'Start wave '+nextW:'Open and start')+'</button>';
+  return '<div class="card '+cls+'"><div class="row"><div><h3>'+esc(t.activityId)+' · '+esc(t.name)+'</h3><div class="meta">'+esc(t.cropName)+' · '+esc(t.runId)+' · platform '+esc(t.platform)+'</div>'
     +'<div class="meta">'+esc(t.zone?t.zone.label:"")+'</div>'+team+descLine(t.description)+'</div>'
     +'<div class="timer" data-sid="'+esc(s?s.id:"")+'" data-key="'+esc(t.key)+'">'+(s?fmtHMS(netSec(s)):"")+'</div></div>'
     +'<div>'+chips+'</div>'+moveBlock(t)+lockNote+'<div style="margin-top:10px">'+btn+'</div></div>';
@@ -497,14 +500,14 @@ function renderFloor(){
   const rows=(S.data.board||[]);
   $("floorList").innerHTML = rows.length ? rows.map(x=>{
     const paused=!!x.pausedAt;
-    return '<div class="card '+(paused?"paused-card":"")+'"><div class="row"><div><h3>'+esc(x.worker)+(x.me?" (you)":"")+'</h3><div class="meta">'+esc(x.activity)+' · '+esc(x.crop)+' · wave '+esc(x.wave)+'</div>'+descLine(x.description)+'<div class="meta">'+esc(x.location||"")+'</div>'
+    return '<div class="card '+(paused?"paused-card":"")+'"><div class="row"><div><h3>'+esc(x.worker)+(x.me?" (you)":"")+'</h3><div class="meta">'+esc(x.activityId)+' · '+esc(x.activity)+' · '+esc(x.crop)+' · wave '+esc(x.wave)+'</div>'+descLine(x.description)+'<div class="meta">'+esc(x.location||"")+'</div>'
       +(paused?'<span class="chip pause">Paused: '+esc(x.pauseReason)+'</span>':'<span class="chip go">Working</span>')+'</div><div class="timer" data-bsid="'+esc(x.id)+'">'+fmtHMS(netSec(x))+'</div></div></div>';
   }).join("") : '<div class="card empty">No one has a session open right now.</div>';
 }
 function renderLog(){
   const rows=(S.data.log||[]);
   $("logList").innerHTML = rows.length ? rows.map(r=>
-    '<div class="card"><div class="row"><div><h3>'+esc(r.activity)+'</h3><div class="meta">'+esc(r.crop)+' · wave '+esc(r.wave)+'</div>'+descLine(r.description)+'<div class="meta">'+esc(r.location||"")+'</div></div><div class="timer">'+esc(Math.round(+r.minutes||0))+' min</div></div>'
+    '<div class="card"><div class="row"><div><h3>'+esc(r.activityId)+' · '+esc(r.activity)+'</h3><div class="meta">'+esc(r.crop)+' · wave '+esc(r.wave)+'</div>'+descLine(r.description)+'<div class="meta">'+esc(r.location||"")+'</div></div><div class="timer">'+esc(Math.round(+r.minutes||0))+' min</div></div>'
     +(r.quantity!==""&&r.quantity!=null?'<span class="chip">'+esc(r.quantity)+' '+esc(r.unit||"")+'</span>':'')
     +'<span class="chip">'+esc(r.outcome||"")+'</span>'+(r.verified?'<span class="chip go">Verified'+(r.verifiedBy?' by '+esc(r.verifiedBy):'')+'</span>':'')
     +'<div class="meta" style="margin-top:6px">'+esc(fmtDT(r.closedAt))+'</div></div>').join("")
@@ -548,9 +551,9 @@ $("sBack").onclick=()=>{ saveDraft(); closeSessionScreen(); refresh(); };
 function renderSession(first){
   const t=findTask(S.cur); if(!t){ closeSessionScreen(); return; }
   const s=t.session, paused=!!(s&&s.pausedAt), z=t.zone||{label:""};
-  $("sTitle").firstChild.nodeValue=t.name; $("sSub").textContent=(S.me?S.me.name+" · "+S.me.role+" · ":"")+(s?s.id:t.runId);
+  $("sTitle").firstChild.nodeValue=t.activityId+" · "+t.name; $("sSub").textContent=(S.me?S.me.name+" · "+S.me.role+" · ":"")+(s?s.id:t.runId);
   $("sCrop").textContent=t.cropName+" · "+t.runId+(s?" · wave "+s.wave:"");
-  $("sName").textContent=t.name; $("sDesc").textContent=t.description||""; $("sMove").innerHTML=moveBlock(t); $("sTiming").textContent=t.timing?("Typical timing: "+t.timing):"";
+  $("sName").textContent=t.activityId+" · "+t.name; $("sDesc").textContent=t.description||""; $("sMove").innerHTML=moveBlock(t); $("sTiming").textContent=t.timing?("Typical timing: "+t.timing):"";
   $("sState").textContent = !s ? "Not started" : paused ? "Paused: "+s.pauseReason : "In progress";
   $("zoneLabel").textContent=z.label||"Zone not set";
   const key=t.key, need=cfg().qrRequired, got=S.zone[key]&&S.zone[key].start;
@@ -567,8 +570,9 @@ function renderSession(first){
   if(!s && t.waves>1){
     ww.classList.remove("hidden");
     if(first||!$("fWave").options.length){
-      const firstOpen=Array.from({length:t.waves},(_,i)=>i+1).find(w=>!t.doneWaves.includes(w))||1;
-      $("fWave").innerHTML=Array.from({length:t.waves},(_,i)=>'<option value="'+(i+1)+'">Wave '+(i+1)+(t.doneWaves.includes(i+1)?" (done)":"")+'</option>').join("");
+      const ow=(t.openWaves&&t.openWaves.length)?t.openWaves:Array.from({length:t.waves},(_,i)=>i+1);
+      const firstOpen=ow.find(w=>!t.doneWaves.includes(w))||ow[0]||1;
+      $("fWave").innerHTML=ow.map(n=>'<option value="'+n+'">Wave '+n+(t.doneWaves.includes(n)?" (done)":"")+'</option>').join("");
       $("fWave").value=String(firstOpen);
     }
   } else ww.classList.add("hidden");
@@ -592,7 +596,7 @@ function updateResume(){
   const s=t.session, paused=!!s.pausedAt;
   el.classList.toggle("paused",paused);
   el.style.bottom=$("session").classList.contains("hidden")?"calc(66px + env(safe-area-inset-bottom,0px))":"env(safe-area-inset-bottom,0px)";
-  el.innerHTML='<span>'+(paused?"\u23F8 Paused":"\u25B6 In progress")+'</span><b>'+esc(t.name)+'</b><span>'+fmtHMS(netSec(s))+'</span><span class="go">Back to session \u203A</span>';
+  el.innerHTML='<span>'+(paused?"\u23F8 Paused":"\u25B6 In progress")+'</span><b>'+esc(t.activityId)+' · '+esc(t.name)+'</b><span>'+fmtHMS(netSec(s))+'</span><span class="go">Back to session \u203A</span>';
 }
 $("resume").onclick=()=>{ const t=runningTask(); if(!t) return; if(S.cur) saveDraft(); openSession(t.key); };
 function tick(){
@@ -670,7 +674,7 @@ async function doComplete(t){
     if(qty===""||!isFinite(n)||n<=0){ toast("Enter a quantity greater than 0 to finish.",true); $("fQty").focus(); return; }
     if(!unit){ toast("Choose a unit.",true); return; }
   }
-  if(!confirm((fin?"Finish ":"Save partial work on ")+t.name+"? This goes to the permanent log.")) return;
+  if(!confirm((fin?"Finish ":"Save partial work on ")+t.activityId+" "+t.name+"? This goes to the permanent log.")) return;
   const submit=async scan=>{
     S.busy=true; W.on(3,"Saving your work…");
     try{

@@ -121,9 +121,6 @@ details.run>summary::-kit-details-marker{display:none}
 .reasons{display:grid;gap:8px}
 .reasons button{min-height:56px;border-radius:12px;border:2px solid var(--line);background:var(--bg);font-weight:700;text-align:left;padding:10px 14px;cursor:pointer}
 .reasons button[aria-pressed=true]{border-color:var(--pause);background:var(--pause);color:var(--pause-ink)}
-#work{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.62);display:grid;place-items:center;padding:20px}#work .wc{background:var(--bg);color:var(--ink);border:3px solid var(--ink);border-radius:18px;padding:22px 20px;width:min(340px,100%);text-align:center;display:grid;gap:12px}
-#work .sp{width:56px;height:56px;margin:0 auto;border:7px solid var(--line,#c5d0c8);border-top-color:var(--go,#1fa855);border-radius:50%;animation:wspin .9s linear infinite}@keyframes wspin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){#work .sp{animation-duration:3s}}
-#work .wt{font-size:20px;font-weight:700}#work .ws{font-size:15px;opacity:.85;min-height:20px}#work .wb{height:10px;border:2px solid var(--ink);border-radius:6px;overflow:hidden}#work .wb i{display:block;height:100%;width:0;background:var(--go,#1fa855);transition:width .5s}
 #toast{position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:80;background:var(--ink);color:var(--bg);padding:14px 16px;border-radius:12px;font-weight:700;text-align:center;max-width:560px;margin:0 auto}
 #toast.bad{background:var(--warn);color:#fff}
 
@@ -131,8 +128,6 @@ details.run>summary::-kit-details-marker{display:none}
 .sc .cam{max-height:none;flex:1;border-radius:0;aspect-ratio:auto}
 .sc .panel{padding:12px 14px calc(14px + env(safe-area-inset-bottom,0px));display:grid;gap:10px;background:var(--card);border-top:2px solid var(--line)}
 .sc .ttl2{font-weight:700;font-size:19px}
-.sc .loc{flex-direction:column}.sc .loc .btn{min-height:56px;width:100%}.sc .manual{border:3px solid var(--go,#0a5a28);border-radius:var(--r);padding:10px;display:grid;gap:8px}
-.sc .cam.nocam{flex:0 0 auto;aspect-ratio:auto;min-height:110px;display:flex;align-items:center;justify-content:center}.sc .cam.nocam video,.sc .cam.nocam .frame{display:none}.sc .cam.nocam .msg{position:static;padding:10px}
 .sc .found{max-height:96px;overflow:auto;font-size:15px}
 .zone{border:3px solid var(--line);border-radius:var(--r);padding:12px;background:var(--card);margin:12px 0}
 .zone.ok{border-color:var(--go)}
@@ -187,7 +182,7 @@ details.run>summary::-kit-details-marker{display:none}
 
     <section id="v-log" class="hidden">
       <div class="bar"><h2>My finished work</h2></div>
-      <div class="meta" style="margin:-6px 0 10px">Last 7 days</div>
+      <div class="meta" style="margin:-6px 0 10px">Last 16 hours</div>
       <div id="logList"></div>
     </section>
   </main>
@@ -260,7 +255,7 @@ details.run>summary::-kit-details-marker{display:none}
     <div class="ttl2" id="scTitle"></div>
     <div class="hint" id="scHint"></div>
     <div class="found hidden" id="scFound"></div>
-    <div class="manual hidden" id="scTypedRow"><div class="hint" style="margin:0"><b>Camera not working or tag damaged?</b> Confirm the zone by hand. It is logged as a manual entry.</div><div class="loc"><select class="t" id="scPick" aria-label="Choose the zone"></select><button class="btn done" id="scTypedGo" type="button">Use this zone</button></div></div>
+    <div class="loc hidden" id="scTypedRow"><select class="t" id="scPick" aria-label="Choose the zone"></select><button class="btn done sm" id="scTypedGo" type="button">Use zone</button></div>
     <button class="btn ghost" id="scClose" type="button">Cancel</button>
   </div>
 </section>
@@ -278,7 +273,6 @@ details.run>summary::-kit-details-marker{display:none}
   </div>
 </div>
 
-<div id="work" class="hidden" role="alertdialog" aria-live="assertive" aria-busy="true" aria-label="Working"><div class="wc"><div class="sp"></div><div class="wt" id="wTxt">Working…</div><div class="wb"><i id="wBar"></i></div><div class="ws" id="wSub"></div></div></div>
 <div id="toast" class="hidden" role="status"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
@@ -320,7 +314,7 @@ async function api(action, payload){
   try{ j = await res.json(); }catch(e){ setLive(false); throw new Error("Server sent an unreadable reply. Check the web app URL."); }
   if(j && j.error){
     if(/^AUTH/.test(j.error) && S.token){ doLogout(true); throw new Error("Session ended. Sign in again."); }
-    throw new Error(String(j.error).replace(/^AUTH:\s*/,"") + (/^Unknown action\s*$/.test(String(j.error)) ? " (\""+action+"\" is not in the deployed script)" : ""));
+    throw new Error(String(j.error).replace(/^AUTH:\s*/,""));
   }
   S.lastOk = Date.now(); setLive(true);
   return j;
@@ -624,20 +618,20 @@ $("sControls").addEventListener("click",async e=>{
 
 async function doStart(t){
   const z=S.zone[t.key]&&S.zone[t.key].start, wave=t.waves>1?+$("fWave").value:1;
-  S.busy=true; W.on(2,"Starting your activity…");
+  S.busy=true;
   try{
     const j=await api("wStart",{runId:t.runId,activityId:t.activityId,wave,zoneScan:z?z.code:"",scanMode:z?z.mode:"qr",equipment:$("fEquip").value.trim(),at:nowMs()});
-    W.set("Started. Loading your session…"); await refresh(); renderSession(false); toast(j.already?"You already had this session open":"Session started");
+    await refresh(); renderSession(false); toast(j.already?"You already had this session open":"Session started");
   }catch(e){ toast(e.message,true); }
-  W.off(); S.busy=false;
+  S.busy=false;
 }
 async function doResume(t){
-  const s=t.session; S.busy=true; W.on(2,"Resuming your activity…");
+  const s=t.session; S.busy=true;
   try{
     const r=await send("wResume",{sessionId:s.id},()=>{ s.pausedSec=(+s.pausedSec||0)+Math.max(0,(nowMs()-Date.parse(s.pausedAt))/1000); s.pausedAt=""; s.pauseReason=""; renderSession(false); renderTasks(); });
-    if(!r.queued){ W.set("Updating your list…"); await refresh(); toast("Resumed"); }
+    if(!r.queued){ await refresh(); toast("Resumed"); }
   }catch(e){ toast(e.message,true); }
-  W.off(); S.busy=false;
+  S.busy=false;
 }
 
 /* pause modal: only the four reasons the server accepts; a stall also needs a note and alerts the manager */
@@ -654,12 +648,12 @@ $("pmOk").onclick=async()=>{
   const t=findTask(S.cur); if(!t||!S.pauseReason) return;
   const reason=S.pauseReason, note=$("pmNote").value.trim(), s=t.session;
   if(reason===CFG.STALL && !note){ toast("Say what is stalled so the manager can help.",true); $("pmNote").focus(); return; }
-  $("pauseModal").classList.add("hidden"); S.busy=true; W.on(2,"Pausing your activity…");
+  $("pauseModal").classList.add("hidden"); S.busy=true;
   try{
     const r=await send("wPause",{sessionId:s.id,reason,note},()=>{ s.pausedAt=new Date(nowMs()).toISOString(); s.pauseReason=reason; renderSession(false); renderTasks(); });
-    if(!r.queued){ W.set("Updating your list…"); await refresh(); toast("Paused"); }
+    if(!r.queued){ await refresh(); toast("Paused"); }
   }catch(e){ toast(e.message,true); }
-  W.off(); S.busy=false;
+  S.busy=false;
 };
 
 /* complete: count gate first, then the zone scan the server requires, then one save */
@@ -672,20 +666,19 @@ async function doComplete(t){
   }
   if(!confirm((fin?"Finish ":"Save partial work on ")+t.name+"? This goes to the permanent log.")) return;
   const submit=async scan=>{
-    S.busy=true; W.on(3,"Saving your work…");
+    S.busy=true;
     try{
       const cond={soilMoisture:$("fMoist").value,weather:$("fWeather").value,tempF:$("fTemp").value};
       const equip=$("fEquip").value.trim();
       if(equip||cond.soilMoisture||cond.weather||cond.tempF) await send("updateSession",{sessionId:s.id,equipment:equip||undefined,conditions:cond});
       const inputs=$("fInputs").value.trim(), notes=[$("fNotes").value.trim(), inputs?"Inputs: "+inputs:""].filter(Boolean).join(" | ");
       const body={sessionId:s.id,completed:fin,quantity:qty===""?"":Number(qty),unit:qty===""?"":unit,notes,zoneScan:scan?scan.code:"",scanMode:scan?scan.mode:"qr"};
-      W.set(fin?"Saving to the permanent log…":"Saving your partial work…");
       const r=await send("wClose",body,()=>{ S.hide[t.key]=true; });
       try{ localStorage.removeItem(draftKey(t.key)); }catch(e){}
       delete S.zone[t.key]; closeSessionScreen();
-      if(r.queued){ renderTasks(); renderBadge(); } else { W.set("Saved. Updating your task list…"); await refresh(); toast("Saved to the log"+(r.netMin!=null?": "+r.netMin+" min worked":"")); }
+      if(r.queued){ renderTasks(); renderBadge(); } else { await refresh(); toast("Saved to the log"+(r.netMin!=null?": "+r.netMin+" min worked":"")); }
     }catch(e){ toast(e.message,true); }
-    W.off(); S.busy=false;
+    S.busy=false;
   };
   if(!cfg().qrRequired){ await submit(null); return; }
   openScanner({title:"Scan "+(t.zone?t.zone.label:"zone")+" to submit",hint:"The server needs the zone tag to accept this task.",allowTyped:typedOk(),zone:t.zone,
@@ -768,7 +761,7 @@ async function submitTrays(){
 let detector=null;
 function openScanner(opts){
   S.sc=opts; $("scTitle").textContent=opts.title; $("scHint").textContent=opts.hint||""; $("camMsg").textContent="Point at the tag";
-  $("cam").classList.remove("nocam"); $("scTypedRow").classList.toggle("hidden",!opts.allowTyped); if(opts.allowTyped) fillZonePick();
+  $("scTypedRow").classList.toggle("hidden",!opts.allowTyped); if(opts.allowTyped) fillZonePick();
   const f=$("scFound"); f.classList.toggle("hidden",!opts.multi); f.textContent="";
   $("scClose").textContent=opts.multi?"Done":"Cancel";
   $("scanner").classList.remove("hidden"); document.body.style.overflow="hidden";
@@ -796,14 +789,14 @@ function fillZonePick(){
   const z=S.sc&&S.sc.zone; ZC=z&&z.label&&(z.codes||[]).length?[z]:[];
   $("scPick").innerHTML=ZC.map((x,i)=>'<option value="'+i+'">'+esc(x.label)+'</option>').join("");
 }
-function pickGo(){ const i=$("scPick").value; if(i===""||!ZC[+i]){ $("camMsg").textContent="No zone is set for this task. Ask a manager."; toast("No zone is set for this task. Ask a manager.",true); return; } handleScan(ZC[+i].codes[0],"manual"); }
+function pickGo(){ const i=$("scPick").value; if(i==="") return; handleScan(ZC[+i].codes[0],"manual"); }
 $("scTypedGo").onclick=pickGo;
 
 async function startCam(){
   stopCam();
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ $("cam").classList.add("nocam"); $("camMsg").textContent=typedOk()?"No camera here. Choose the zone below.":"No camera here. Choosing a zone by hand is turned off. Ask a manager."; return; }
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ $("camMsg").textContent=typedOk()?"No camera here. Choose the zone below.":"No camera here. Choosing a zone by hand is turned off. Ask a manager."; return; }
   try{ S.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false}); }
-  catch(e){ $("cam").classList.add("nocam"); $("camMsg").textContent=typedOk()?"Camera blocked. Choose the zone below.":"Camera blocked. Allow camera access in the browser."; return; }
+  catch(e){ $("camMsg").textContent=typedOk()?"Camera blocked. Choose the zone below.":"Camera blocked. Allow camera access in the browser."; return; }
   if(!S.sc){ stopCam(); return; }
   const v=$("vid"); v.srcObject=S.stream; await v.play().catch(()=>{}); S.scanOn=true;
   if("BarcodeDetector" in window){ try{ detector=new BarcodeDetector({formats:["qr_code","code_128","code_39","data_matrix"]}); }catch(e){ detector=null; } }
@@ -827,13 +820,7 @@ async function scanLoop(){
 }
 
 /* ============================ TOAST ============================ */
-/* progress overlay: blocks taps, shows the current step, a step bar and elapsed time, and warns when the server is slow */
-const W = { t0:0, iv:null, n:0, total:1,
-  on(total, msg){ W.off(true); W.t0=Date.now(); W.n=0; W.total=total||1; $("work").classList.remove("hidden"); W.set(msg);
-    W.iv=setInterval(()=>{ const s=Math.round((Date.now()-W.t0)/1000); $("wSub").textContent= s<6 ? "Please keep this screen open." : s<20 ? "Still working… "+s+" s. The server is a little slow, please wait." : "Still working… "+s+" s. Do not close the app; this can take up to a minute."; },1000); $("wSub").textContent="Please keep this screen open."; },
-  set(msg){ W.n++; $("wTxt").textContent=msg; $("wBar").style.width=Math.min(95,Math.round(W.n/(W.total+1)*100))+"%"; },
-  off(quiet){ clearInterval(W.iv); W.iv=null; $("work").classList.add("hidden"); $("wBar").style.width="0"; } };
-let tt; function toast(msg,bad){ const t=$("toast"); t.textContent=msg; t.className=bad?"bad":""; clearTimeout(tt); tt=setTimeout(()=>t.classList.add("hidden"),bad?9000:2400); }
+let tt; function toast(msg,bad){ const t=$("toast"); t.textContent=msg; t.className=bad?"bad":""; clearTimeout(tt); tt=setTimeout(()=>t.classList.add("hidden"),bad?4800:2400); }
 
 /* ============================ INIT ============================ */
 if(loadAuth()) enterApp(); else setLive(false);

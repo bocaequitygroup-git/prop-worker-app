@@ -290,7 +290,7 @@ details.run>summary::-kit-details-marker{display:none}
 const CFG = {
   API_URL: "https://script.google.com/macros/s/AKfycbz7qyhFT5BRUpiqLCnjtT8gRX-UQ-I0lQhF__H6dgCU_Rql2WFOMuNm-YLXazi0Zrir_g/exec",   // the same /exec URL as the board and dashboard (Code_pro.gs)
   APP: "prop_workerapp",
-  POLL_MS: 20000,
+  POLL_MS: 30000,
   SLOW_MS: 45000,
   STALL: "Material/Equipment Stall",
   PAUSE_REASONS: ["Break","Lunch","Material/Equipment Stall","End of Day"],   // the four reasons wPause accepts
@@ -314,13 +314,20 @@ const nowMs = () => Date.now()+S.skew;
 
 /* ============================ API ============================ */
 class NetErr extends Error{ constructor(m){ super(m); this.net=true; } }
+class BusyErr extends Error{ constructor(m){ super(m); this.busy=true; } }
 async function api(action, payload){
   const body = JSON.stringify(Object.assign({action, token:S.token}, payload||{}));
-  let res;
-  try{ res = await fetch(CFG.API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body}); }
-  catch(e){ setLive(false); throw new NetErr("No connection. Check signal and try again."); }
-  let j;
-  try{ j = await res.json(); }catch(e){ setLive(false); throw new Error("Server sent an unreadable reply. Check the web app URL."); }
+  const readOnly = action==="wSync";   // safe to repeat; writes are never auto-retried
+  let j, res;
+  for(let tryNo=0; ; tryNo++){
+    try{ res = await fetch(CFG.API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body}); }
+    catch(e){ setLive(false); throw new NetErr("No connection. Check signal and try again."); }
+    try{ j = await res.json(); break; }
+    catch(e){   // Apps Script answered with an HTML page (busy, timed out, or an old deployment)
+      if(readOnly && tryNo<2){ await new Promise(r=>setTimeout(r, tryNo?4000:1500)); continue; }
+      setLive(false); throw new BusyErr("The server is busy or not responding. Your screen shows the last data; it will retry on its own.");
+    }
+  }
   if(j && j.error){
     if(/^AUTH/.test(j.error) && S.token){ doLogout(true); throw new Error("Session ended. Sign in again."); }
     throw new Error(String(j.error).replace(/^AUTH:\s*/,""));
@@ -414,12 +421,15 @@ window.addEventListener("online",()=>{ if(S.token) refresh(); });
 
 async function refresh(manual){
   if(!S.token) return;
+  if(S.syncing && !manual) return;   // never stack polls while one is still waiting on the server
+  S.syncing=true;
   try{
     if(obGet().length){ await flushOutbox(); if(obGet().length){ if(manual) toast("Still no signal. Work is saved on this phone.",true); return; } }
     const j = await api("wSync");
     S.data=j; S.skew=j.now-Date.now(); renderAll();
     if(S.cur){ if(findTask(S.cur)) renderSession(false); else closeSessionScreen(); }
-  }catch(e){ if(manual||S.tab==="sessions") toast(e.message,true); }
+  }catch(e){ if(manual || (S.tab==="sessions" && !e.busy && !e.net)) toast(e.message,true); }   // quiet background retries; keep showing the last data
+  finally{ S.syncing=false; }
 }
 $("refreshBtn").onclick=()=>refresh(true); $("refreshBtn2").onclick=()=>refresh(true);
 

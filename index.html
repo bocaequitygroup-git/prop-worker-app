@@ -508,7 +508,7 @@ function renderFloor(){
   }).join("") : '<div class="card empty">No one has a session open right now.</div>';
 }
 function renderLog(){
-  const rows=(S.data.log||[]);
+  const rows=(S.data.log||[]).slice().sort((a,b)=>new Date(b.closedAt)-new Date(a.closedAt));   // newest first
   let lastDay="";
   $("logList").innerHTML = rows.length ? rows.map(r=>{
     const d=new Date(r.closedAt), day=isNaN(d)?"":d.toLocaleDateString([], {weekday:"short",month:"short",day:"numeric"});

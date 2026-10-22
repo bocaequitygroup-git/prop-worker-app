@@ -187,7 +187,7 @@ details.run>summary::-kit-details-marker{display:none}
 
     <section id="v-log" class="hidden">
       <div class="bar"><h2>My finished work</h2></div>
-      <div class="meta" style="margin:-6px 0 10px">Last 16 hours</div>
+      <div class="meta" style="margin:-6px 0 10px">Last 7 days</div>
       <div id="logList"></div>
     </section>
   </main>
@@ -509,11 +509,15 @@ function renderFloor(){
 }
 function renderLog(){
   const rows=(S.data.log||[]);
-  $("logList").innerHTML = rows.length ? rows.map(r=>
+  let lastDay="";
+  $("logList").innerHTML = rows.length ? rows.map(r=>{
+    const d=new Date(r.closedAt), day=isNaN(d)?"":d.toLocaleDateString([], {weekday:"short",month:"short",day:"numeric"});
+    const hdr = day&&day!==lastDay ? '<div class="meta" style="margin:12px 0 6px;font-weight:700">'+esc(day)+'</div>' : ""; lastDay=day;
+    return hdr+
     '<div class="card"><div class="row"><div><h3>'+esc(r.activityId)+' · '+esc(r.activity)+'</h3><div class="meta">'+esc(r.crop)+' · wave '+esc(r.wave)+'</div>'+descLine(r.description)+'<div class="meta">'+esc(r.location||"")+'</div></div><div class="timer">'+esc(Math.round(+r.minutes||0))+' min</div></div>'
     +(r.quantity!==""&&r.quantity!=null?'<span class="chip">'+esc(r.quantity)+' '+esc(r.unit||"")+'</span>':'')
     +'<span class="chip">'+esc(r.outcome||"")+'</span>'+(r.verified?'<span class="chip go">Verified'+(r.verifiedBy?' by '+esc(r.verifiedBy):'')+'</span>':'')
-    +'<div class="meta" style="margin-top:6px">'+esc(fmtDT(r.closedAt))+'</div></div>').join("")
+    +'<div class="meta" style="margin-top:6px">'+esc(fmtDT(r.closedAt))+'</div></div>';}).join("")
     : '<div class="card empty">Finished work will appear here.</div>';
 }
 
